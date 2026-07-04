@@ -4,8 +4,18 @@ import { FindingCard } from './FindingCard'
 
 export function ReportView({ report }: { report: Report }) {
   const r = report
+  const generatedAt = new Date().toLocaleString('ru-RU')
   return (
     <div className="report">
+      <div className="report__toolbar">
+        <div className="report__print-title">
+          Отчёт о проверке рекламы · {generatedAt}
+        </div>
+        <button className="btn btn--ghost" onClick={() => window.print()}>
+          🖨 Скачать PDF / печать
+        </button>
+      </div>
+
       <div className={`report__hero report__hero--${r.overall_risk}`}>
         <div className="report__light">{RISK_EMOJI[r.overall_risk]}</div>
         <div>
