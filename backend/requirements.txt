@@ -1,0 +1,13 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+python-multipart==0.0.20
+PyYAML==6.0.2
+httpx==0.28.1
+beautifulsoup4==4.12.3
+anthropic==0.42.0
+pymorphy3==2.0.2
+pymorphy3-dicts-ru==2.4.417150.4580142
+# OCR-запасной вариант (нужен системный пакет tesseract-ocr):
+pytesseract==0.3.13
+Pillow==11.0.0
