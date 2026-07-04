@@ -48,3 +48,24 @@ def test_dedupe_removes_identical_findings():
     report = analyzer.analyze(text="лучший лучший лучший", input_type=InputType.text)
     superl = [f for f in report.findings if f.id == "superlative"]
     assert len(superl) == 1
+
+
+def test_firm_name_survives_dedupe_for_credit():
+    # Регрессия: у кредита firm_name и credit_warning раньше имели одинаковый
+    # заголовок и firm_name схлопывался дедупликацией.
+    report = analyzer.analyze(text="Кредит в Сбере под 5% годовых", input_type=InputType.text)
+    ids = [f.id for f in report.findings]
+    assert any("firm_name" in i for i in ids)
+    assert any("credit_warning" in i for i in ids)
+
+
+def test_risk_warning_phrase_not_duplicated():
+    # «Оценивайте свои финансовые возможности и риски» должно упоминаться ровно
+    # в одной находке (специальной), а не дублироваться в карточке категории.
+    report = analyzer.analyze(text="Кредит наличными под 5% годовых", input_type=InputType.text)
+    phrase = "оценивайте свои финансовые возможности"
+    hits = [
+        f for f in report.findings
+        if phrase in (f.title + f.description + " ".join(f.mitigation)).lower()
+    ]
+    assert len(hits) == 1

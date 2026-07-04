@@ -207,32 +207,34 @@ function runGeneralRules(text, stemSet, low){
   return out;
 }
 
+function label(item, fallback){ const l=item.label; if(l) return l; const t=(fallback||"").trim(); return t.length<=70 ? t : t.slice(0,69).trim()+"…"; }
+
 function runCategoryRules(text, cats, low){
   const out = [];
   for(const key of cats){ const c = KB.categories[key]; const title = c.title || key; const proh = c.prohibitions || [];
     out.push(mk("category_"+key, key, "Особый правовой режим: "+title,
-      "Обнаружена реклама категории «"+title+"». Действуют специальные ограничения: "+proh.join("; ")+".",
+      "Обнаружена реклама категории «"+title+"». Для неё действуют специальные требования законодательства о рекламе — см. пункты ниже.",
       c.risk_level||"medium", c.law_refs, c.liability_refs, c.practice_refs,
-      ["Сверьтесь с требованиями закона к данной категории"].concat(proh.map(p=>"Требование: "+p)), null));
+      proh.length ? proh.slice() : ["Сверьтесь с требованиями закона к данной категории"], null));
     for(const d of (c.required_disclaimers||[])){
       const present = (d.patterns||[]).some(p=>low.includes(p.toLowerCase()));
-      if(!present) out.push(mk("disclaimer_"+key+"_"+d.id, key, "Отсутствует обязательное предупреждение: "+title,
-        "Не обнаружено обязательное предупреждение: "+d.text+".", c.risk_level||"medium",
+      if(!present) out.push(mk("disclaimer_"+key+"_"+d.id, key, "Не указано обязательное: "+label(d,d.text),
+        "Категория «"+title+"». Не обнаружено обязательное: "+d.text+".", c.risk_level||"medium",
         c.law_refs, c.liability_refs, c.practice_refs, ["Добавьте: "+d.text], null));
     }
     for(const d of (c.conditional_disclaimers||[])){
       const trig = (d.trigger_patterns||[]).find(t=>low.includes(t.toLowerCase()));
       const sat = (d.required_patterns||[]).some(x=>low.includes(x.toLowerCase()));
       if(trig && !sat){ const i=low.indexOf(trig.toLowerCase());
-        out.push(mk("cond_"+key+"_"+d.id, key, "Не раскрыты обязательные условия: "+title,
-          "В рекламе указано условие («"+trig+"»), но отсутствует обязательное раскрытие: "+d.text+".",
+        out.push(mk("cond_"+key+"_"+d.id, key, "Не раскрыто обязательное: "+label(d,d.text),
+          "Категория «"+title+"». В рекламе указано условие «"+trig+"», но отсутствует обязательное раскрытие: "+d.text+".",
           c.risk_level||"medium", c.law_refs, c.liability_refs, c.practice_refs, ["Добавьте: "+d.text], snippet(text,i,trig.length))); }
     }
     for(const fp of (c.forbidden_patterns||[])){
       const hit = (fp.patterns||[]).find(p=>low.includes(p.toLowerCase()));
       if(hit){ const i=low.indexOf(hit.toLowerCase());
-        out.push(mk("forbidden_"+key+"_"+fp.id, key, "Запрещённая формулировка: "+title,
-          fp.text || "Обнаружена запрещённая формулировка.", fp.risk_level || c.risk_level || "high",
+        out.push(mk("forbidden_"+key+"_"+fp.id, key, "Запрещённая формулировка: "+label(fp,fp.text),
+          "Категория «"+title+"». "+(fp.text || "Обнаружена запрещённая формулировка."), fp.risk_level || c.risk_level || "high",
           c.law_refs, c.liability_refs, c.practice_refs, ["Удалите или переформулируйте: "+(fp.text||"")], snippet(text,i,hit.length))); }
     }
   }

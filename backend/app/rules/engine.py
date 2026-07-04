@@ -22,6 +22,16 @@ def _snippet(text: str, match_start: int, match_len: int, radius: int = 40) -> s
     return f"{prefix}{text[start:end].strip()}{suffix}"
 
 
+def _label(item: dict, fallback_text: str) -> str:
+    """Короткая метка требования для заголовка находки (уникальна в рамках
+    категории, чтобы разные требования не схлопывались дедупликацией)."""
+    lbl = item.get("label")
+    if lbl:
+        return lbl
+    t = (fallback_text or "").strip()
+    return t if len(t) <= 70 else t[:69].rstrip() + "…"
+
+
 class RulesEngine:
     def __init__(self, kb: Optional[KnowledgeBase] = None) -> None:
         self.kb = kb or get_knowledge()
@@ -184,7 +194,9 @@ class RulesEngine:
             cat = self.kb.categories[cat_key]
             title = cat.get("title", cat_key)
 
-            # 1) Общая находка «особый режим категории».
+            # 1) Общая находка «особый режим категории». Конкретные требования, у
+            #    которых есть отдельные проверки (дисклеймеры/условия/запреты), сюда
+            #    НЕ дублируются — здесь остаётся только общий контекст (prohibitions).
             prohibitions = cat.get("prohibitions", [])
             findings.append(
                 self._build_finding(
@@ -193,17 +205,14 @@ class RulesEngine:
                     title=f"Особый правовой режим: {title}",
                     description=(
                         f"Обнаружена реклама категории «{title}». Для неё действуют "
-                        f"специальные ограничения. Проверьте соблюдение требований: "
-                        + "; ".join(prohibitions)
-                        if prohibitions
-                        else f"Обнаружена реклама категории «{title}» с особым режимом."
+                        f"специальные требования законодательства о рекламе — см. пункты ниже."
                     ),
                     risk_level=cat.get("risk_level", "medium"),
                     law_refs=cat.get("law_refs", []),
                     liability_refs=cat.get("liability_refs", []),
                     practice_refs=cat.get("practice_refs", []),
-                    mitigation=["Сверьтесь с требованиями закона к данной категории"]
-                    + [f"Требование: {p}" for p in prohibitions],
+                    mitigation=list(prohibitions)
+                    or ["Сверьтесь с требованиями закона к данной категории"],
                     evidence=None,
                 )
             )
@@ -217,9 +226,9 @@ class RulesEngine:
                         self._build_finding(
                             finding_id=f"disclaimer_{cat_key}_{disc['id']}",
                             category=cat_key,
-                            title=f"Отсутствует обязательное предупреждение: {title}",
+                            title=f"Не указано обязательное: {_label(disc, disc.get('text', ''))}",
                             description=(
-                                f"Не обнаружено обязательное предупреждение: "
+                                f"Категория «{title}». Не обнаружено обязательное: "
                                 f"{disc.get('text', '')}."
                             ),
                             risk_level=cat.get("risk_level", "medium"),
@@ -246,10 +255,10 @@ class RulesEngine:
                         self._build_finding(
                             finding_id=f"cond_{cat_key}_{disc['id']}",
                             category=cat_key,
-                            title=f"Не раскрыты обязательные условия: {title}",
+                            title=f"Не раскрыто обязательное: {_label(disc, disc.get('text', ''))}",
                             description=(
-                                f"В рекламе указано условие («{triggered}»), но отсутствует "
-                                f"обязательное раскрытие: {disc.get('text', '')}."
+                                f"Категория «{title}». В рекламе указано условие «{triggered}», "
+                                f"но отсутствует обязательное раскрытие: {disc.get('text', '')}."
                             ),
                             risk_level=cat.get("risk_level", "medium"),
                             law_refs=cat.get("law_refs", []),
@@ -271,8 +280,8 @@ class RulesEngine:
                         self._build_finding(
                             finding_id=f"forbidden_{cat_key}_{fp['id']}",
                             category=cat_key,
-                            title=f"Запрещённая формулировка: {title}",
-                            description=fp.get("text", "Обнаружена запрещённая формулировка."),
+                            title=f"Запрещённая формулировка: {_label(fp, fp.get('text', ''))}",
+                            description=f"Категория «{title}». " + fp.get("text", "Обнаружена запрещённая формулировка."),
                             risk_level=fp.get("risk_level", cat.get("risk_level", "high")),
                             law_refs=cat.get("law_refs", []),
                             liability_refs=cat.get("liability_refs", []),

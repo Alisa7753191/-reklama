@@ -156,6 +156,21 @@ def test_company_name_not_misdetected_as_alcohol():
     assert "alcohol" in _cats("Выдержанный ром и коньяк")
 
 
+def test_age_marking_not_required_for_ordinary_goods():
+    # Возрастная маркировка НЕ нужна для рекламы обычных товаров/услуг.
+    assert "age_marking_missing" not in _ids("Купите пылесос со скидкой 20%")
+    assert "age_marking_missing" not in _ids("Кредит наличными под 5% годовых")
+
+
+def test_age_marking_required_for_info_product_without_mark():
+    # Информационная продукция без знака 0+…18+ → флаг.
+    assert "age_marking_missing" in _ids("Премьера нового фильма уже в кино!")
+
+
+def test_age_marking_ok_for_info_product_with_mark():
+    assert "age_marking_missing" not in _ids("Премьера нового фильма в кино. 16+")
+
+
 def test_tobacco_uses_current_legal_basis_not_repealed_article():
     findings, _ = engine.analyze("Электронная сигарета с никотином")
     tob = next(f for f in findings if f.id == "category_tobacco")
