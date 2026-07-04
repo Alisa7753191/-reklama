@@ -171,6 +171,16 @@ def test_age_marking_ok_for_info_product_with_mark():
     assert "age_marking_missing" not in _ids("Премьера нового фильма в кино. 16+")
 
 
+def test_age_marking_required_for_mobile_app():
+    # Мобильное приложение — программа для ЭВМ = информационная продукция (436-ФЗ).
+    assert "age_marking_missing" in _ids("Скачайте наше приложение банка в App Store")
+    assert "age_marking_missing" in _ids("Мобильный банк СБОЛ — оплата в одно касание")
+
+
+def test_age_marking_ok_for_app_with_mark():
+    assert "age_marking_missing" not in _ids("Приложение доступно в Google Play. 6+")
+
+
 def test_tobacco_uses_current_legal_basis_not_repealed_article():
     findings, _ = engine.analyze("Электронная сигарета с никотином")
     tob = next(f for f in findings if f.id == "category_tobacco")
