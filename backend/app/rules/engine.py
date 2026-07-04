@@ -142,6 +142,19 @@ class RulesEngine:
                     matched = True
                     evidence = None
 
+            elif rtype == "conditional":
+                # Сработать, если есть триггер, но нет ни одного обязательного элемента
+                # (например: онлайн-заказ без реквизитов продавца — ст. 8).
+                trig = next(
+                    (t for t in rule.get("trigger_patterns", []) if t.lower() in low), None
+                )
+                if trig and not any(
+                    r.lower() in low for r in rule.get("required_patterns", [])
+                ):
+                    matched = True
+                    idx = low.find(trig.lower())
+                    evidence = _snippet(text, idx, len(trig)) if idx >= 0 else None
+
             if matched:
                 findings.append(
                     self._build_finding(
@@ -192,7 +205,7 @@ class RulesEngine:
                 )
             )
 
-            # 2) Проверка обязательных дисклеймеров.
+            # 2) Проверка обязательных дисклеймеров (всегда обязательны для категории).
             for disc in cat.get("required_disclaimers", []):
                 patterns = disc.get("patterns", [])
                 present = any(p.lower() in low for p in patterns)
@@ -212,6 +225,57 @@ class RulesEngine:
                             practice_refs=cat.get("practice_refs", []),
                             mitigation=[f"Добавьте: {disc.get('text', '')}"],
                             evidence=None,
+                        )
+                    )
+
+            # 3) Условные дисклеймеры: обязательны, только если сработал триггер
+            #    (например, для вклада указана ставка — тогда нужно раскрыть все условия).
+            for disc in cat.get("conditional_disclaimers", []):
+                triggers = disc.get("trigger_patterns", [])
+                required = disc.get("required_patterns", [])
+                triggered = next(
+                    (t for t in triggers if t.lower() in low), None
+                )
+                satisfied = any(r.lower() in low for r in required)
+                if triggered and not satisfied:
+                    idx = low.find(triggered.lower())
+                    findings.append(
+                        self._build_finding(
+                            finding_id=f"cond_{cat_key}_{disc['id']}",
+                            category=cat_key,
+                            title=f"Не раскрыты обязательные условия: {title}",
+                            description=(
+                                f"В рекламе указано условие («{triggered}»), но отсутствует "
+                                f"обязательное раскрытие: {disc.get('text', '')}."
+                            ),
+                            risk_level=cat.get("risk_level", "medium"),
+                            law_refs=cat.get("law_refs", []),
+                            liability_refs=cat.get("liability_refs", []),
+                            practice_refs=cat.get("practice_refs", []),
+                            mitigation=[f"Добавьте: {disc.get('text', '')}"],
+                            evidence=_snippet(text, idx, len(triggered)) if idx >= 0 else None,
+                        )
+                    )
+
+            # 4) Запрещённые формулировки (например, обещание гарантированного дохода
+            #    для инвестиций или «спишем все долги» для банкротства).
+            for fp in cat.get("forbidden_patterns", []):
+                patterns = fp.get("patterns", [])
+                hit = next((p for p in patterns if p.lower() in low), None)
+                if hit:
+                    idx = low.find(hit.lower())
+                    findings.append(
+                        self._build_finding(
+                            finding_id=f"forbidden_{cat_key}_{fp['id']}",
+                            category=cat_key,
+                            title=f"Запрещённая формулировка: {title}",
+                            description=fp.get("text", "Обнаружена запрещённая формулировка."),
+                            risk_level=fp.get("risk_level", cat.get("risk_level", "high")),
+                            law_refs=cat.get("law_refs", []),
+                            liability_refs=cat.get("liability_refs", []),
+                            practice_refs=cat.get("practice_refs", []),
+                            mitigation=["Удалите или переформулируйте: " + fp.get("text", "")],
+                            evidence=_snippet(text, idx, len(hit)) if idx >= 0 else None,
                         )
                     )
         return findings

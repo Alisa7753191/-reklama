@@ -34,7 +34,7 @@ def test_number_one_symbol_detected():
 
 
 def test_guarantee_detected():
-    assert "guarantee" in _ids("Гарантированно избавим вас от долгов навсегда")
+    assert "guarantee" in _ids("Стопроцентно вылечит любую болезнь без побочных")
 
 
 def test_personal_data_detected():
@@ -55,8 +55,75 @@ def test_category_medicine_and_bad():
     assert "medicine" in cats
 
 
-def test_category_finance():
-    assert "finance" in _cats("Кредит под 5% годовых без справок")
+def test_category_credit():
+    assert "credit" in _cats("Кредит наличными под 5% годовых без справок")
+
+
+def test_category_deposit():
+    assert "deposit" in _cats("Вклад «Доходный» — 12% годовых")
+
+
+def test_category_investment():
+    assert "investment" in _cats("Инвестиции в облигации через брокера")
+
+
+def test_category_bankruptcy():
+    assert "bankruptcy" in _cats("Списание долгов через процедуру банкротства")
+
+
+def test_category_energy_drinks():
+    assert "energy_drinks" in _cats("Энергетический напиток с гуараной")
+
+
+def test_category_weapons():
+    assert "weapons" in _cats("Продаём травматическое оружие и патроны")
+
+
+def test_credit_requires_risk_warning():
+    ids = _ids("Кредит наличными от 5% годовых!")
+    assert any("credit_warning" in i for i in ids)
+
+
+def test_credit_conditional_psk_when_rate_present():
+    ids = _ids("Ипотека 6% годовых, оформи сейчас")
+    assert any(i.startswith("cond_credit") for i in ids)
+
+
+def test_deposit_fixed_rate_not_flagged_as_false_guarantee():
+    # Для вклада фиксированная ставка допустима: не должно быть находки «гарантии»,
+    # но должно быть требование раскрыть все условия (ст. 28 ч. 2 п. 2).
+    findings, _ = engine.analyze("Вклад с гарантированной ставкой 12% годовых")
+    ids = {f.id for f in findings}
+    assert "guarantee" not in ids
+    assert any(i.startswith("cond_deposit") for i in ids)
+
+
+def test_investment_guarantee_is_forbidden():
+    ids = _ids("Инвестиции с гарантированной доходностью без риска")
+    assert any(i.startswith("forbidden_investment") for i in ids)
+
+
+def test_forex_requires_risk_warning():
+    ids = _ids("Заработок на форекс с нашим форекс-дилером")
+    assert any("forex_warning" in i for i in ids)
+
+
+def test_bankruptcy_forbidden_and_warning():
+    ids = _ids("Спишем все долги гарантированно через банкротство")
+    assert any(i.startswith("forbidden_bankruptcy") for i in ids)
+    assert any("bankr_warning" in i for i in ids)
+
+
+def test_promo_event_requires_terms():
+    assert "promo_event" in _ids("Розыгрыш призов! Выиграй автомобиль при покупке")
+
+
+def test_tobacco_uses_current_legal_basis_not_repealed_article():
+    findings, _ = engine.analyze("Электронная сигарета с никотином")
+    tob = next(f for f in findings if f.id == "category_tobacco")
+    # ст. 23 утратила силу — основание должно ссылаться на ст. 7 / ФЗ-15.
+    assert tob.legal_basis
+    assert "7" in tob.legal_basis[0].article
 
 
 def test_missing_erid_flagged_for_internet_ad():
