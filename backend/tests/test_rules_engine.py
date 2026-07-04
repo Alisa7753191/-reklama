@@ -118,6 +118,44 @@ def test_promo_event_requires_terms():
     assert "promo_event" in _ids("Розыгрыш призов! Выиграй автомобиль при покупке")
 
 
+def test_firm_name_flagged_for_brand_only():
+    # «Сбер» — бренд, а не фирменное наименование → должно флагаться (ст. 28 ч. 1).
+    ids = _ids("Вклад в Сбере под 12% годовых")
+    assert any("firm_name" in i for i in ids)
+
+
+def test_firm_name_ok_with_legal_form():
+    ids = _ids("Вклад в ПАО Сбербанк, срок 1 год, с капитализацией процентов")
+    assert not any("firm_name" in i for i in ids)
+
+
+def test_credit_psk_required_when_rate_present():
+    assert "cond_credit_credit_psk" in _ids("Кредит наличными под 5% годовых")
+
+
+def test_credit_psk_ok_when_disclosed():
+    ids = _ids("Кредит, ставка 5% годовых, полная стоимость кредита 5-8%")
+    assert "cond_credit_credit_psk" not in ids
+
+
+def test_credit_link_required_with_phrase():
+    assert "cond_credit_credit_link" in _ids(
+        "Кредит. Изучите все условия кредита. ПАО Банк."
+    )
+
+
+def test_credit_link_ok_with_site():
+    ids = _ids("Кредит. Изучите все условия кредита на сайте bank.ru. ПАО Банк.")
+    assert "cond_credit_credit_link" not in ids
+
+
+def test_company_name_not_misdetected_as_alcohol():
+    # Регрессия: «Ромашка» (содержит «ром»), «промо» не должны давать категорию алкоголь.
+    assert "alcohol" not in _cats("Скидки и промо от компании ООО Ромашка")
+    # А настоящий алкоголь по-прежнему определяется.
+    assert "alcohol" in _cats("Выдержанный ром и коньяк")
+
+
 def test_tobacco_uses_current_legal_basis_not_repealed_article():
     findings, _ = engine.analyze("Электронная сигарета с никотином")
     tob = next(f for f in findings if f.id == "category_tobacco")

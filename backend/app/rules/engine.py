@@ -72,11 +72,14 @@ class RulesEngine:
         for cat_key, cat in self.kb.categories.items():
             for kw in cat.get("keywords", []):
                 if " " in kw or "-" in kw:
+                    # Многословные/составные ключи — по подстроке.
                     if kw.lower() in low:
                         detected.append(cat_key)
                         break
                 else:
-                    if morphology.lemmatize_term(kw) in lemmas or kw.lower() in low:
+                    # Однословные ключи — только по лемме (целым словом), без подстроки,
+                    # чтобы «ром» не срабатывал в «Ромашка», «промо»; «бар» — в «товар».
+                    if morphology.lemmatize_term(kw) in lemmas:
                         detected.append(cat_key)
                         break
         return detected

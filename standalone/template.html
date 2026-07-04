@@ -176,7 +176,7 @@ function detectCategories(text, stemSet){
   for(const key in KB.categories){ const c = KB.categories[key];
     for(const kw of (c.keywords||[])){
       if(kw.includes(" ") || kw.includes("-")){ if(low.includes(kw.toLowerCase())){ found.push(key); break; } }
-      else { if(stemSet.has(lemmaTerm(kw)) || low.includes(kw.toLowerCase())){ found.push(key); break; } }
+      else { if(stemSet.has(lemmaTerm(kw))){ found.push(key); break; } }  // однословные — только целым словом
     }
   }
   return found;
