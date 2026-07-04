@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>ПравоРеклама — проверка рекламы на правовые риски РФ</title>
+<style>
+  :root{
+    --bg:#eef1f7;--surface:#fff;--surface-2:#f7f9fd;--border:#e2e6f0;--text:#172033;
+    --muted:#5c6678;--primary:#2c4bd8;--primary-ink:#1f37a8;--primary-weak:#eaeefb;
+    --low:#278a4f;--medium:#b5870a;--high:#d95f0b;--critical:#d0302c;
+    --low-bg:#e7f4ec;--medium-bg:#fbf1dc;--high-bg:#fdeadd;--critical-bg:#fbe6e5;
+    --font-sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --font-mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --shadow:0 1px 2px rgba(20,30,60,.06),0 10px 30px rgba(20,30,60,.07);--radius:14px;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#0d1320;--surface:#151d2c;--surface-2:#1b2434;--border:#29344a;--text:#e7ecf6;
+    --muted:#94a1b8;--primary:#6d8bff;--primary-ink:#9db3ff;--primary-weak:#1d2947;
+    --low:#4bbd76;--medium:#e0af23;--high:#f5842c;--critical:#f0524d;
+    --low-bg:#16281e;--medium-bg:#2a2312;--high-bg:#2c1d11;--critical-bg:#2c1614;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 34px rgba(0,0,0,.4);
+  }}
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font-family:var(--font-sans);color:var(--text);line-height:1.55;
+    background:radial-gradient(120% 60% at 50% -10%,color-mix(in srgb,var(--primary) 8%,transparent),transparent 60%),var(--bg);
+    min-height:100vh;padding:0 16px 72px;-webkit-font-smoothing:antialiased;
+  }
+  .container{max-width:860px;margin:0 auto}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:22px 4px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:13px}
+  .brand__mark{width:46px;height:46px;flex:none;display:grid;place-items:center;font-size:24px;border-radius:12px;
+    background:linear-gradient(150deg,var(--primary),var(--primary-ink));box-shadow:var(--shadow);color:#fff}
+  .brand__name{font-size:20px;font-weight:750;letter-spacing:-.02em}
+  .brand__tag{font-size:12.5px;color:var(--muted);margin-top:1px}
+  .mode{font-size:12px;font-weight:650;padding:6px 13px;border-radius:999px;background:var(--primary-weak);
+    color:var(--primary-ink);border:1px solid color-mix(in srgb,var(--primary) 22%,transparent)}
+  .eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .panel{padding:18px 20px;margin-bottom:18px}
+  .panel .eyebrow{display:block;margin-bottom:8px}
+  textarea{width:100%;border:1px solid var(--border);border-radius:11px;padding:13px 15px;font-size:15px;
+    font-family:inherit;color:var(--text);background:var(--surface-2);resize:vertical;outline:none;min-height:130px}
+  textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 18%,transparent)}
+  .actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:13px;flex-wrap:wrap}
+  .btn{background:var(--primary);color:#fff;border:none;border-radius:10px;padding:11px 26px;font-size:15px;
+    font-weight:650;cursor:pointer}
+  .btn:hover{background:var(--primary-ink)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .linkbtn{background:none;border:none;color:var(--primary);cursor:pointer;font-size:13px;padding:0}
+  .ghost{background:transparent;color:var(--primary);border:1px solid var(--primary);padding:9px 18px;font-size:14px;border-radius:10px;cursor:pointer;font-weight:650}
+  .ghost:hover{background:var(--primary-weak)}
+
+  .hero{display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:center;padding:22px 24px;border-radius:var(--radius);margin-bottom:14px;border:1px solid var(--border)}
+  .hero--low{background:var(--low-bg);border-color:color-mix(in srgb,var(--low) 30%,transparent)}
+  .hero--medium{background:var(--medium-bg);border-color:color-mix(in srgb,var(--medium) 30%,transparent)}
+  .hero--high{background:var(--high-bg);border-color:color-mix(in srgb,var(--high) 30%,transparent)}
+  .hero--critical{background:var(--critical-bg);border-color:color-mix(in srgb,var(--critical) 30%,transparent)}
+  .light{display:flex;flex-direction:column;gap:6px;align-items:center}
+  .light__dot{width:15px;height:15px;border-radius:50%;background:currentColor;opacity:.22}
+  .light__dot--on{opacity:1;box-shadow:0 0 0 4px color-mix(in srgb,currentColor 22%,transparent)}
+  .light--low{color:var(--low)}.light--medium{color:var(--medium)}.light--high{color:var(--high)}.light--critical{color:var(--critical)}
+  .hero__label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+  .hero__level{font-size:25px;font-weight:780;letter-spacing:-.01em}
+  .hero__level--low{color:var(--low)}.hero__level--medium{color:var(--medium)}.hero__level--high{color:var(--high)}.hero__level--critical{color:var(--critical)}
+  .hero__sub{font-size:14px;margin-top:3px}
+
+  .counts{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
+  .count{font-size:12.5px;font-weight:650;padding:5px 12px;border-radius:999px;display:inline-flex;align-items:center;gap:7px;
+    border:1px solid var(--border);background:var(--surface);font-variant-numeric:tabular-nums}
+  .count .swatch{width:9px;height:9px;border-radius:50%}
+  .chips{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:22px}
+  .chip{font-size:12.5px;font-weight:650;padding:5px 12px;border-radius:8px;background:var(--primary-weak);color:var(--primary-ink)}
+  .section-label{font-size:13px;font-weight:700;color:var(--muted);margin:0 4px 12px}
+
+  .findings{display:flex;flex-direction:column;gap:15px}
+  .finding{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:18px 20px 20px;overflow:hidden}
+  .finding::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px}
+  .finding--high::before{background:var(--high)}.finding--medium::before{background:var(--medium)}
+  .finding--low::before{background:var(--low)}.finding--critical::before{background:var(--critical)}
+  .f-head{display:flex;align-items:flex-start;gap:11px;flex-wrap:wrap}
+  .f-num{width:25px;height:25px;flex:none;display:grid;place-items:center;font-size:12px;font-weight:750;border-radius:50%;
+    background:var(--primary-weak);color:var(--primary-ink);font-variant-numeric:tabular-nums}
+  .f-title{font-size:16.5px;font-weight:700;margin:0;flex:1;min-width:190px;letter-spacing:-.01em;text-wrap:balance}
+  .f-tags{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+  .badge{font-size:11px;font-weight:750;padding:4px 11px;border-radius:999px;color:#fff}
+  .badge--high{background:var(--high)}.badge--medium{background:var(--medium)}.badge--low{background:var(--low)}.badge--critical{background:var(--critical)}
+  .src{font-size:11px;font-weight:650;padding:4px 10px;border-radius:999px;border:1px solid var(--border);color:var(--muted)}
+  .f-desc{font-size:14.5px;margin:12px 0 0}
+  .evidence{margin:13px 0 0;padding:11px 14px;border-radius:0 9px 9px 0;background:var(--surface-2);
+    border-left:3px solid var(--muted);font-family:var(--font-mono);font-size:13px}
+  .evidence .eyebrow{display:block;margin-bottom:5px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-top:15px}
+  .block{background:var(--surface-2);border:1px solid var(--border);border-radius:11px;padding:13px 15px}
+  .block h4{margin:0 0 9px;font-size:12.5px;font-weight:750}
+  .block p,.block li{font-size:13px;margin:0}
+  .block ul{margin:0;padding-left:17px;display:flex;flex-direction:column;gap:6px}
+  .law-ref{font-weight:700}.law-sum{color:var(--muted);font-size:12px;margin-top:4px}
+  .fines{list-style:none;padding:0;margin:8px 0 0;display:flex;flex-direction:column;gap:4px}
+  .fines li{display:flex;justify-content:space-between;gap:12px;font-size:12.5px}
+  .fines .amt{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-weight:650;white-space:nowrap}
+  .link{color:var(--primary);text-decoration:none;font-size:12px;font-weight:600}
+  .link:hover{text-decoration:underline}
+  .empty{margin-top:16px;background:var(--low-bg);color:var(--low);padding:20px;border-radius:var(--radius);text-align:center;font-weight:650}
+  .disclaimer{margin-top:26px;padding:15px 18px;border-radius:12px;font-size:12.5px;color:var(--muted);
+    background:var(--surface);border:1px dashed var(--border)}
+  .footer{text-align:center;color:var(--muted);font-size:12px;margin-top:26px}
+  .hidden{display:none}
+  @media (max-width:620px){.grid{grid-template-columns:1fr}.hero{grid-template-columns:1fr}}
+  @media print{.top .mode,.panel,.footer,#exportBtn{display:none!important}.finding,.hero,.badge,.chip{-webkit-print-color-adjust:exact;print-color-adjust:exact}.finding{break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="container">
+  <header class="top">
+    <div class="brand">
+      <div class="brand__mark">⚖️</div>
+      <div>
+        <div class="brand__name">ПравоРеклама</div>
+        <div class="brand__tag">Проверка рекламы на правовые риски · законодательство РФ</div>
+      </div>
+    </div>
+    <div class="mode">Локальная версия · движок правил</div>
+  </header>
+
+  <section class="card panel">
+    <span class="eyebrow">Рекламный текст для проверки</span>
+    <textarea id="input" placeholder="Вставьте рекламный текст, объявление, пост или слоган…"></textarea>
+    <div class="actions">
+      <button class="linkbtn" id="exampleBtn">Подставить пример</button>
+      <button class="btn" id="checkBtn">Проверить</button>
+    </div>
+  </section>
+
+  <div id="report"></div>
+
+  <div class="footer">
+    ПравоРеклама · автономная версия (проверка правилами, работает офлайн). Полная версия добавляет ИИ-анализ смысла.
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ---------- Правовая база (совпадает с backend/app/knowledge/*.yaml) ---------- */
+const LAWS = {
+  fz38_5_2:{law:"ФЗ «О рекламе» № 38-ФЗ",article:"ст. 5, ч. 2",title:"Недобросовестная реклама",summary:"Некорректные сравнения с товарами конкурентов; акт недобросовестной конкуренции.",url:"https://www.consultant.ru/document/cons_doc_LAW_58968/"},
+  fz38_5_3:{law:"ФЗ «О рекламе» № 38-ФЗ",article:"ст. 5, ч. 3",title:"Недостоверная реклама",summary:"Не соответствующие действительности сведения о характеристиках, гарантиях, результатах.",url:"https://www.consultant.ru/document/cons_doc_LAW_58968/"},
+  fz38_5_3_1:{law:"ФЗ «О рекламе» № 38-ФЗ",article:"ст. 5, ч. 3, п. 1",title:"Недостоверные сведения о преимуществах",summary:"Слова «лучший», «первый», «№1», «самый» без документального подтверждения трактуются ФАС как недостоверная реклама.",url:"https://www.consultant.ru/document/cons_doc_LAW_58968/"},
+  fz38_5_7:{law:"ФЗ «О рекламе» № 38-ФЗ",article:"ст. 5, ч. 7",title:"Отсутствие существенной информации",summary:"Реклама без части существенной информации, искажающая смысл и вводящая в заблуждение.",url:"https://www.consultant.ru/document/cons_doc_LAW_58968/"},
+  fz38_21:{law:"ФЗ «О рекламе» № 38-ФЗ",article:"ст. 21",title:"Реклама алкогольной продукции",summary:"Реклама алкоголя в интернете запрещена; обязательно предупреждение о вреде; запрет образов людей/животных и обращения к несовершеннолетним.",url:"https://www.consultant.ru/document/cons_doc_LAW_58968/"},
+  fz38_23:{law:"ФЗ «О рекламе» № 38-ФЗ",article:"ст. 23",title:"Реклама табака и никотинсодержащей продукции",summary:"Реклама табака, вейпов, устройств и жидкостей фактически полностью запрещена.",url:"https://www.consultant.ru/document/cons_doc_LAW_58968/"},
+  fz38_24:{law:"ФЗ «О рекламе» № 38-ФЗ",article:"ст. 24",title:"Реклама лекарств, медизделий и услуг",summary:"Обязательно предупреждение о противопоказаниях и необходимости консультации специалиста; запрет гарантий излечения.",url:"https://www.consultant.ru/document/cons_doc_LAW_58968/"},
+  fz38_25:{law:"ФЗ «О рекламе» № 38-ФЗ",article:"ст. 25",title:"Реклама БАД",summary:"Запрет создавать впечатление лекарства; обязательно «не является лекарственным средством».",url:"https://www.consultant.ru/document/cons_doc_LAW_58968/"},
+  fz38_27:{law:"ФЗ «О рекламе» № 38-ФЗ",article:"ст. 27",title:"Реклама азартных игр и пари",summary:"Запрет обращения к несовершеннолетним и представления игр как источника дохода; предупреждение о рисках.",url:"https://www.consultant.ru/document/cons_doc_LAW_58968/"},
+  fz38_28:{law:"ФЗ «О рекламе» № 38-ФЗ",article:"ст. 28",title:"Реклама финансовых услуг",summary:"Обязательно наименование лица; при указании условия кредита — раскрытие полной стоимости (ПСК) и всех прочих условий.",url:"https://www.consultant.ru/document/cons_doc_LAW_58968/"},
+  fz38_18_1:{law:"ФЗ «О рекламе» № 38-ФЗ",article:"ст. 18.1",title:"Маркировка интернет-рекламы (ERID)",summary:"Интернет-реклама должна содержать пометку «реклама», данные рекламодателя и идентификатор erid (ОРД), передаваемый в ЕРИР.",url:"https://www.consultant.ru/document/cons_doc_LAW_58968/"},
+  fz436:{law:"ФЗ № 436-ФЗ «О защите детей от информации»",article:"ст. 6, ст. 11",title:"Возрастная маркировка",summary:"Знак информационной продукции (0+…18+) в установленных законом случаях.",url:"https://www.consultant.ru/document/cons_doc_LAW_108808/"},
+  fz152:{law:"ФЗ № 152-ФЗ «О персональных данных»",article:"ст. 6, ст. 9",title:"Обработка персональных данных",summary:"Сбор ПДн (телефон, e-mail через формы) требует правового основания — как правило, согласия субъекта.",url:"https://www.consultant.ru/document/cons_doc_LAW_61801/"},
+  fz38_6:{law:"ФЗ «О рекламе» № 38-ФЗ",article:"ст. 6",title:"Защита несовершеннолетних",summary:"Запрет побуждать детей уговаривать родителей и формировать комплекс неполноценности.",url:"https://www.consultant.ru/document/cons_doc_LAW_58968/"},
+};
+const LIAB = {
+  k1:{koap:"ст. 14.3, ч. 1 КоАП РФ",citizens:"2 000–2 500 ₽",officials:"4 000–20 000 ₽",legal:"100 000–500 000 ₽",note:"Общий состав, если нет специальной части ст. 14.3."},
+  k25:{koap:"ст. 14.3, ч. 2–5 КоАП РФ",citizens:"2 000–4 000 ₽",officials:"10 000–25 000 ₽",legal:"200 000–500 000 ₽",note:"Спецтребования (алкоголь, лекарства, БАД, финуслуги). Уточните часть по КоАП."},
+  k16:{koap:"ст. 14.3, ч. 16 КоАП РФ",citizens:"30 000–100 000 ₽",officials:"100 000–200 000 ₽",legal:"200 000–500 000 ₽",note:"Интернет-реклама без идентификатора erid или с нарушением его размещения."},
+  ktob:{koap:"ст. 14.3.1 КоАП РФ",citizens:"2 000–3 000 ₽",officials:"10 000–20 000 ₽",legal:"150 000–600 000 ₽",note:"Реклама табачной и никотинсодержащей продукции."},
+  kpdn:{koap:"ст. 13.11 КоАП РФ",citizens:"6 000–10 000 ₽",officials:"20 000–40 000 ₽",legal:"60 000–100 000 ₽",note:"Обработка ПДн без согласия/правового основания."},
+};
+const PRACTICE = {
+  superlative:{type:"ФАС",text:"Использование «№1», «лучший», «самый» без критерия сравнения и подтверждения систематически признаётся недостоверной рекламой."},
+  comparison:{type:"ФАС",text:"Сравнение «лучше конкурентов» без измеримых параметров — некорректное сравнение и недобросовестная реклама."},
+  erid:{type:"ФАС/РКН",text:"С 2023 г. активно штрафуют интернет-рекламу без маркировки; штраф налагается за каждое рекламное сообщение."},
+  medicine:{type:"ФАС",text:"Отсутствие предупреждения о противопоказаниях и гарантии излечения — частые основания штрафов."},
+  bad:{type:"ФАС",text:"Реклама БАД со свойствами лекарства без дисклеймера «не является лекарственным средством» — нарушение."},
+  finance:{type:"ФАС",text:"Реклама кредита с одной ставкой без раскрытия полной стоимости — нарушение ст. 28."},
+  alcohol:{type:"ФАС",text:"Любая реклама алкоголя в интернете запрещена."},
+  tobacco:{type:"ФАС",text:"Реклама вейпов и электронных сигарет запрещена, в т.ч. у блогеров и в соцсетях."},
+};
+
+/* ---------- Категории ---------- */
+const CATEGORIES = {
+  alcohol:{title:"Алкогольная продукция",risk:"critical",law:["fz38_21"],liab:"k25",practice:"alcohol",
+    keywords:["алкоголь","водка","вино","винный","пиво","пивной","коньяк","виски","ром","текила","джин","ликёр","ликер","шампанское","игристое","вермут","бренди","сидр","алкогольный"],
+    disclaimers:[{id:"harm",text:"Предупреждение о вреде чрезмерного потребления алкоголя (≥10% площади)",patterns:["чрезмерное употребление","вредит вашему здоровью"]}],
+    prohibitions:["Реклама алкоголя в сети «Интернет» полностью запрещена","Запрещено обращение к несовершеннолетним и образы людей/животных"]},
+  tobacco:{title:"Табак, вейпы, никотин",risk:"critical",law:["fz38_23"],liab:"ktob",practice:"tobacco",
+    keywords:["сигарета","сигареты","табак","табачный","вейп","вейпинг","электронная сигарета","электронные сигареты","кальян","никотин","никотиновый","iqos","айкос","снюс","испаритель","жидкость для вейпа"],
+    disclaimers:[],prohibitions:["Реклама табака, вейпов и никотинсодержащей продукции полностью запрещена"]},
+  medicine:{title:"Лекарства, медизделия и услуги",risk:"high",law:["fz38_24"],liab:"k25",practice:"medicine",
+    keywords:["лекарство","лекарственный","препарат","таблетки","капсулы","мазь","сироп","вакцина","медицинский","клиника","врач","лечение","лечит","вылечит","терапия","диагностика","операция","аптека","болезнь","симптом"],
+    disclaimers:[{id:"warn",text:"Предупреждение о противопоказаниях и необходимости консультации специалиста",patterns:["противопоказан","проконсультируйтесь","консультация специалиста","ознакомьтесь с инструкцией"]}],
+    prohibitions:["Запрещены гарантии эффективности и ссылки на случаи излечения","Реклама рецептурных препаратов вне спец. изданий запрещена"]},
+  bad:{title:"Биологически активные добавки (БАД)",risk:"high",law:["fz38_25"],liab:"k25",practice:"bad",
+    keywords:["бад","биологически активная добавка","добавка к пище","витаминный комплекс","нутрицевтик","фитокомплекс","пищевая добавка"],
+    disclaimers:[{id:"warn",text:"Предупреждение «не является лекарственным средством» (≥10% площади)",patterns:["не является лекарственным средством","не лекарство"]}],
+    prohibitions:["Запрещено создавать впечатление лекарственного средства и лечебных свойств"]},
+  finance:{title:"Финансовые услуги, кредиты",risk:"high",law:["fz38_28"],liab:"k25",practice:"finance",
+    keywords:["кредит","займ","заем","микрозайм","рассрочка","ипотека","вклад","депозит","инвестиции","инвестировать","доходность","брокер","форекс","ценные бумаги","акции","облигации","мфо","кредитная карта","годовых","пассивный доход"],
+    disclaimers:[{id:"prov",text:"Наименование лица, оказывающего финансовые услуги",patterns:["ооо","ао","пао","банк","лицензия"]}],
+    prohibitions:["При указании условия кредита обязательно раскрытие ПСК и всех прочих условий","Запрещено гарантировать доходность инвестиций"]},
+  gambling:{title:"Азартные игры, ставки",risk:"high",law:["fz38_27"],liab:"k25",practice:null,
+    keywords:["казино","букмекер","ставки на спорт","азартные игры","рулетка","покер","тотализатор","игровой автомат","фрибет","бонус на депозит"],
+    disclaimers:[{id:"warn",text:"Предупреждение о рисках, связанных с азартными играми",patterns:["риск","может вызвать зависимость","18+"]}],
+    prohibitions:["Запрещено обращение к несовершеннолетним","Запрещено представлять игры как источник дохода"]},
+  children:{title:"Реклама, обращённая к детям",risk:"medium",law:["fz38_6"],liab:"k1",practice:null,
+    keywords:["детск","ребёнок","ребенок","малыш","игрушк","школьник","подросток","для детей","детское питание"],
+    disclaimers:[],prohibitions:["Запрещено побуждать детей уговаривать родителей","Запрещено формировать комплекс неполноценности"]},
+};
+
+/* ---------- Общие правила ---------- */
+const RULES = {
+  superlative:{title:"Превосходная степень без подтверждения",risk:"high",law:["fz38_5_3_1"],liab:"k1",practice:"superlative",type:"stem",
+    stems:["лучш","перв","сам","единствен","лидер","непревзойд","эталон","топов"],
+    phrases:["№1","№ 1","#1","no.1","номер 1","номер один","самый лучший","вне конкуренции"],
+    desc:"Обнаружены слова превосходной степени. Без документального подтверждения объективными критериями это трактуется ФАС как недостоверная реклама.",
+    fix:["Удалите слова превосходной степени или добавьте объективный критерий сравнения","Сошлитесь на подтверждающий источник: «по данным … за … год»"]},
+  guarantee:{title:"Гарантии результата / безусловные обещания",risk:"high",law:["fz38_5_3"],liab:"k1",practice:null,type:"phrase",
+    phrases:["гарантированн","гарантия результата","100% результат","стопроцентн","абсолютно безопасн","без побочных","без противопоказаний","навсегда избавит","мгновенный результат","вылечит","излечивает","пожизненная гарантия"],
+    desc:"Безусловные обещания результата и гарантии эффективности могут быть признаны недостоверной рекламой, особенно для медицинских и финансовых продуктов.",
+    fix:["Замените безусловные обещания на корректные формулировки","Избегайте гарантий эффективности лечения и дохода"]},
+  comparison:{title:"Некорректное сравнение с конкурентами",risk:"medium",law:["fz38_5_2"],liab:"k1",practice:"comparison",type:"phrase",
+    phrases:["лучше чем у конкурент","лучше конкурент","дешевле всех","выгоднее всех","лучше, чем","в отличие от других","никто не предлагает","только у нас"],
+    desc:"Сравнение с конкурентами без конкретных измеримых параметров и подтверждения может быть признано некорректным сравнением и недобросовестной рекламой.",
+    fix:["Приведите конкретные измеримые параметры сравнения и их подтверждение"]},
+  free_bait:{title:"«Бесплатно» / «акция» при наличии условий",risk:"low",law:["fz38_5_7"],liab:"k1",practice:null,type:"phrase",
+    phrases:["бесплатно","0 рублей","0 ₽","даром","в подарок","бесплатн"],
+    desc:"Слова «бесплатно»/«акция» требуют раскрытия существенных условий. Их отсутствие может ввести потребителя в заблуждение (ст. 5 ч. 7).",
+    fix:["Раскройте все существенные условия акции (сроки, ограничения, что входит)"]},
+  personal_data:{title:"Сбор персональных данных",risk:"medium",law:["fz152"],liab:"kpdn",practice:null,type:"phrase",
+    phrases:["оставьте телефон","оставьте заявку","введите номер","укажите e-mail","укажите email","оставьте контакты","заполните форму","оставьте свой номер","получите на почту","подпишитесь","оставить заявку"],
+    desc:"Реклама предполагает сбор персональных данных. Необходимо согласие субъекта на обработку ПДн и наличие политики обработки персональных данных.",
+    fix:["Добавьте чекбокс согласия на обработку ПДн со ссылкой на политику","Разместите политику обработки персональных данных"]},
+  erid_missing:{title:"Отсутствует идентификатор рекламы (erid)",risk:"high",law:["fz38_18_1"],liab:"k16",practice:"erid",type:"absent",
+    patterns:[/erid/i,/ерид/i,/\bkt[a-z0-9]{6,}\b/i],
+    desc:"Для интернет-рекламы обязателен уникальный идентификатор erid, присвоенный ОРД. В проверяемом контенте он не обнаружен.",
+    fix:["Получите erid у оператора рекламных данных (ОРД) до запуска","Разместите erid в креативе и обеспечьте передачу сведений в ЕРИР"]},
+  reklama_label:{title:"Отсутствует пометка «реклама» и рекламодатель",risk:"medium",law:["fz38_18_1"],liab:"k16",practice:"erid",type:"absent",
+    patterns:[/реклама/i,/рекламодател/i],
+    desc:"Интернет-реклама должна содержать пометку «реклама» и указание на рекламодателя (или ссылку на сайт с информацией о нём).",
+    fix:["Добавьте пометку «Реклама» и данные рекламодателя (ИНН/наименование)"]},
+  age_marking:{title:"Отсутствует возрастная маркировка",risk:"low",law:["fz436"],liab:"k1",practice:null,type:"absent",
+    patterns:[/\b0\+/,/\b6\+/,/\b12\+/,/\b16\+/,/\b18\+/],
+    desc:"Не обнаружен знак возрастной маркировки (0+…18+). Для ряда объектов рекламы он обязателен — проверьте применимость к вашему случаю.",
+    fix:["Добавьте корректный знак возрастной категории, если он обязателен"]},
+};
+
+/* ---------- Движок ---------- */
+const ORDER = {low:1,medium:2,high:3,critical:4};
+const LEVEL_RU = {low:"Низкий",medium:"Средний",high:"Высокий",critical:"Критический"};
+const SUFFIXES = ["ыми","ими","ого","его","ому","ему","ыій","ая","яя","ое","ее","ые","ий","ый","ых","их","ом","ем","ов","ев","ам","ям","ах","ях","ой","ей","у","ю","а","я","ы","и","е","о","ь"];
+
+function tokens(t){return (t.toLowerCase().match(/[а-яёa-z0-9]+/g)||[]);}
+function stem(w){for(const s of SUFFIXES){if(w.length-s.length>=3&&w.endsWith(s))return w.slice(0,w.length-s.length);}return w;}
+function snippet(text,idx,len){const r=42;const a=Math.max(0,idx-r),b=Math.min(text.length,idx+len+r);return (a>0?"…":"")+text.slice(a,b).trim()+(b<text.length?"…":"");}
+
+function legalBasis(keys){return keys.map(k=>LAWS[k]).filter(Boolean);}
+function build(id,cat,title,desc,risk,law,liabKey,practiceKey,fix,evidence){
+  const pr=[];if(practiceKey&&PRACTICE[practiceKey])pr.push(PRACTICE[practiceKey]);
+  return {id,cat,title,desc,risk,legal:legalBasis(law),liab:LIAB[liabKey]||null,practice:pr,fix:fix||[],evidence:evidence||null,source:"Правило"};
+}
+
+function detectCategories(text,toks,stemSet){
+  const low=text.toLowerCase();const found=[];
+  for(const key in CATEGORIES){const c=CATEGORIES[key];
+    for(const kw of c.keywords){
+      if(kw.includes(" ")){if(low.includes(kw)){found.push(key);break;}}
+      else{if(stemSet.has(stem(kw))||low.includes(kw)){found.push(key);break;}}
+    }
+  }
+  return found;
+}
+
+function analyze(text){
+  const toks=tokens(text);const stemSet=new Set(toks.map(stem));const low=text.toLowerCase();
+  const findings=[];
+  const cats=detectCategories(text,toks,stemSet);
+
+  for(const id in RULES){const r=RULES[id];let matched=false,ev=null;
+    if(r.type==="stem"){
+      const hit=r.stems.find(s=>stemSet.has(s)|| [...stemSet].some(x=>x.startsWith(s)));
+      if(hit){matched=true;const tk=toks.find(t=>stem(t).startsWith(hit));ev=tk||hit;}
+      if(!matched&&r.phrases){for(const p of r.phrases){const i=low.indexOf(p.toLowerCase());if(i>=0){matched=true;ev=snippet(text,i,p.length);break;}}}
+    }else if(r.type==="phrase"){
+      for(const p of r.phrases){const i=low.indexOf(p.toLowerCase());if(i>=0){matched=true;ev=snippet(text,i,p.length);break;}}
+    }else if(r.type==="absent"){
+      const any=r.patterns.some(re=>re.test(text));if(!any){matched=true;ev=null;}
+    }
+    if(matched)findings.push(build(id,id,r.title,r.desc,r.risk,r.law,r.liab,r.practice,r.fix,ev));
+  }
+
+  for(const key of cats){const c=CATEGORIES[key];
+    findings.push(build("cat_"+key,key,"Особый правовой режим: "+c.title,
+      "Обнаружена реклама категории «"+c.title+"». Действуют специальные ограничения: "+c.prohibitions.join("; ")+".",
+      c.risk,c.law,c.liab,c.practice,["Сверьтесь с требованиями закона к данной категории"].concat(c.prohibitions.map(p=>"Требование: "+p)),null));
+    for(const d of c.disclaimers){const present=d.patterns.some(p=>low.includes(p.toLowerCase()));
+      if(!present)findings.push(build("disc_"+key+"_"+d.id,key,"Отсутствует обязательное предупреждение: "+c.title,
+        "Не обнаружено обязательное предупреждение: "+d.text+".",c.risk,c.law,c.liab,c.practice,["Добавьте: "+d.text],null));}
+  }
+
+  // дедуп
+  const seen=new Set();const uniq=[];
+  for(const f of findings){const k=f.title.toLowerCase()+"|"+((f.evidence||"").toLowerCase());if(seen.has(k))continue;seen.add(k);uniq.push(f);}
+  uniq.sort((a,b)=>ORDER[b.risk]-ORDER[a.risk]||(a.source==="Правило"?-1:1));
+  const overall=uniq.length?uniq.reduce((m,f)=>ORDER[f.risk]>ORDER[m]?f.risk:m,"low"):"low";
+  return {overall,findings:uniq,cats};
+}
+
+/* ---------- Рендер ---------- */
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function finesHtml(l){if(!l)return "";let r='<p><span class="law-ref">'+esc(l.koap)+'</span></p><ul class="fines">';
+  r+='<li>Граждане <span class="amt">'+esc(l.citizens)+'</span></li>';
+  r+='<li>Должностные <span class="amt">'+esc(l.officials)+'</span></li>';
+  r+='<li>Юрлица <span class="amt">'+esc(l.legal)+'</span></li></ul>';
+  if(l.note)r+='<p class="law-sum">'+esc(l.note)+'</p>';return r;}
+function lawHtml(list){return list.map(lb=>'<p><span class="law-ref">'+esc(lb.law)+", "+esc(lb.article)+'</span></p><p class="law-sum">'+esc(lb.summary)+'</p>'+(lb.url?'<a class="link" href="'+lb.url+'" target="_blank" rel="noreferrer">источник ↗</a>':"")).join("");}
+
+function render(res){
+  const rep=document.getElementById("report");
+  const counts={critical:0,high:0,medium:0,low:0};res.findings.forEach(f=>counts[f.risk]++);
+  const n=res.findings.length;
+  const dots=lvl=>{const on=ORDER[lvl];return [3,2,1].map(v=>'<span class="light__dot'+(on===v?" light__dot--on":"")+'"></span>').join("");};
+  let sub = n===0 ? "Явных правовых рисков движок не обнаружил. Рекомендуется финальная проверка юристом." :
+    "Выявлено рисков: "+n+". Проверьте каждый пункт ниже.";
+
+  let html='<button class="ghost" id="exportBtn" style="margin-bottom:12px">🖨 Скачать PDF / печать</button>';
+  html+='<div class="hero hero--'+res.overall+'"><div class="light light--'+res.overall+'">'+dots(res.overall)+'</div>'+
+    '<div><div class="hero__label">Итоговый уровень риска</div><div class="hero__level hero__level--'+res.overall+'">'+LEVEL_RU[res.overall]+'</div><div class="hero__sub">'+esc(sub)+'</div></div></div>';
+
+  html+='<div class="counts">'+
+    ['critical','high','medium','low'].map(k=>'<span class="count"><span class="swatch" style="background:var(--'+k+')"></span>'+LEVEL_RU[k]+': <b>'+counts[k]+'</b></span>').join("")+'</div>';
+
+  if(res.cats.length)html+='<div class="chips"><span class="eyebrow">Категории:</span>'+res.cats.map(c=>'<span class="chip">'+esc(CATEGORIES[c].title)+'</span>').join("")+'</div>';
+
+  if(n===0){html+='<div class="empty">✅ Явных нарушений не найдено. Это не заменяет проверку юристом.</div>';}
+  else{
+    html+='<div class="section-label">Найденные риски — по убыванию серьёзности</div><div class="findings">';
+    res.findings.forEach((f,i)=>{
+      html+='<article class="finding finding--'+f.risk+'"><div class="f-head"><span class="f-num">'+(i+1)+'</span>'+
+        '<h3 class="f-title">'+esc(f.title)+'</h3><div class="f-tags"><span class="badge badge--'+f.risk+'">'+LEVEL_RU[f.risk]+'</span><span class="src">'+esc(f.source)+'</span></div></div>';
+      html+='<p class="f-desc">'+esc(f.desc)+'</p>';
+      if(f.evidence)html+='<div class="evidence"><span class="eyebrow">Фрагмент рекламы</span>«'+esc(f.evidence)+'»</div>';
+      html+='<div class="grid">';
+      if(f.legal.length)html+='<div class="block"><h4>📖 Правовое основание</h4>'+lawHtml(f.legal)+'</div>';
+      if(f.liab)html+='<div class="block"><h4>⚖️ Ответственность</h4>'+finesHtml(f.liab)+'</div>';
+      if(f.fix.length)html+='<div class="block"><h4>🛠 Меры минимизации</h4><ul>'+f.fix.map(m=>'<li>'+esc(m)+'</li>').join("")+'</ul></div>';
+      if(f.practice.length)html+='<div class="block"><h4>🏛 Практика ФАС / судов</h4>'+f.practice.map(p=>'<p><b>'+esc(p.type)+':</b> '+esc(p.text)+'</p>').join("")+'</div>';
+      html+='</div></article>';
+    });
+    html+='</div>';
+  }
+  html+='<div class="disclaimer">⚠️ Результаты формируются автоматически движком правил, носят информационно-справочный характер и <b>не являются юридической консультацией</b>. Размеры штрафов и нормы могут устаревать — проконсультируйтесь с юристом.</div>';
+  rep.innerHTML=html;
+  const eb=document.getElementById("exportBtn");if(eb)eb.onclick=()=>window.print();
+  rep.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+/* ---------- События ---------- */
+const EXAMPLE="Наш банк — №1 в России! Гарантированный доход 25% годовых по вкладам. Кредит без справок и поручителей. Оставьте заявку — перезвоним за 5 минут!";
+document.getElementById("checkBtn").onclick=()=>{const t=document.getElementById("input").value.trim();if(!t)return;render(analyze(t));};
+document.getElementById("exampleBtn").onclick=()=>{document.getElementById("input").value=EXAMPLE;};
+document.getElementById("input").addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key==="Enter")document.getElementById("checkBtn").click();});
+</script>
+</body>
+</html>
