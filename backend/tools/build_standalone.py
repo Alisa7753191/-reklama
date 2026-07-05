@@ -14,6 +14,8 @@ ROOT = Path(__file__).resolve().parents[2]
 KNOW = ROOT / "backend" / "app" / "knowledge"
 TEMPLATE = ROOT / "standalone" / "template.html"
 OUTPUT = ROOT / "standalone" / "index.html"
+# Копия для публикации через GitHub Pages (Pages раздаёт из /docs).
+PAGES_OUTPUT = ROOT / "docs" / "index.html"
 
 sys.path.insert(0, str(ROOT / "backend"))
 import yaml  # noqa: E402
@@ -38,8 +40,11 @@ def main() -> None:
     template = TEMPLATE.read_text(encoding="utf-8")
     if "__KB_DATA__" not in template:
         raise SystemExit("В шаблоне не найден плейсхолдер __KB_DATA__")
-    OUTPUT.write_text(template.replace("__KB_DATA__", data), encoding="utf-8")
-    print(f"OK: {OUTPUT.relative_to(ROOT)} собран "
+    rendered = template.replace("__KB_DATA__", data)
+    OUTPUT.write_text(rendered, encoding="utf-8")
+    PAGES_OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+    PAGES_OUTPUT.write_text(rendered, encoding="utf-8")
+    print(f"OK: {OUTPUT.relative_to(ROOT)} и {PAGES_OUTPUT.relative_to(ROOT)} собраны "
           f"(законов={len(kb['laws'])}, категорий={len(kb['categories'])}, правил={len(kb['rules'])})")
 
 
