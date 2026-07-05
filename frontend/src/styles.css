@@ -111,6 +111,30 @@ body {
   border-bottom-color: var(--primary);
   background: var(--surface);
 }
+.channel-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  background: #fafbfe;
+  flex-wrap: wrap;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.channel-row select {
+  font-family: inherit;
+  font-size: 14px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+}
+.channel-hint {
+  font-size: 12.5px;
+  color: var(--muted);
+}
 .tab-body {
   padding: 18px;
 }

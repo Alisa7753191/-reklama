@@ -1,5 +1,5 @@
 import type { Report } from '../types'
-import { RISK_EMOJI, RISK_LABEL } from '../labels'
+import { CHANNEL_LABEL, RISK_EMOJI, RISK_LABEL } from '../labels'
 import { FindingCard } from './FindingCard'
 
 export function ReportView({ report }: { report: Report }) {
@@ -36,6 +36,7 @@ export function ReportView({ report }: { report: Report }) {
       )}
 
       <div className="report__meta">
+        {r.meta.channel && <span>Канал: {CHANNEL_LABEL[r.meta.channel] ?? r.meta.channel}</span>}
         <span>Правил: {r.meta.rules_findings}</span>
         <span>ИИ-находок: {r.meta.llm_findings}</span>
         <span>

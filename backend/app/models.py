@@ -29,6 +29,19 @@ class InputType(str, Enum):
     image = "image"
 
 
+class Channel(str, Enum):
+    """Канал распространения рекламы. Влияет на применимость требований
+    к маркировке (ERID/«реклама» по ст. 18.1 — только для интернета)."""
+
+    internet = "internet"
+    sms = "sms"          # реклама по сетям электросвязи (ст. 18) — ERID не применяется
+    email = "email"
+    tv = "tv"
+    radio = "radio"
+    print = "print"
+    outdoor = "outdoor"  # наружная реклама
+
+
 class LegalBasis(BaseModel):
     law: str
     article: str
@@ -73,11 +86,13 @@ class AnalyzeRequest(BaseModel):
     input_type: InputType = InputType.text
     text: Optional[str] = None
     url: Optional[str] = None
+    channel: Channel = Channel.internet
     # Для изображений используется multipart-загрузка в отдельном эндпоинте.
 
 
 class ReportMeta(BaseModel):
     input_type: InputType
+    channel: Channel = Channel.internet
     llm_used: bool
     llm_provider: Optional[str] = None
     rules_findings: int = 0

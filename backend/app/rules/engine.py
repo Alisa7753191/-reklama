@@ -194,28 +194,29 @@ class RulesEngine:
             cat = self.kb.categories[cat_key]
             title = cat.get("title", cat_key)
 
-            # 1) Общая находка «особый режим категории». Конкретные требования, у
-            #    которых есть отдельные проверки (дисклеймеры/условия/запреты), сюда
-            #    НЕ дублируются — здесь остаётся только общий контекст (prohibitions).
+            # 1) Общая карточка «особый режим категории» выдаётся ТОЛЬКО если есть
+            #    неповторяющийся контекст (непустой prohibitions). Если все требования
+            #    категории уже покрыты отдельными проверками (как у кредита), общая
+            #    карточка не показывается, чтобы не дублировать риски.
             prohibitions = cat.get("prohibitions", [])
-            findings.append(
-                self._build_finding(
-                    finding_id=f"category_{cat_key}",
-                    category=cat_key,
-                    title=f"Особый правовой режим: {title}",
-                    description=(
-                        f"Обнаружена реклама категории «{title}». Для неё действуют "
-                        f"специальные требования законодательства о рекламе — см. пункты ниже."
-                    ),
-                    risk_level=cat.get("risk_level", "medium"),
-                    law_refs=cat.get("law_refs", []),
-                    liability_refs=cat.get("liability_refs", []),
-                    practice_refs=cat.get("practice_refs", []),
-                    mitigation=list(prohibitions)
-                    or ["Сверьтесь с требованиями закона к данной категории"],
-                    evidence=None,
+            if prohibitions:
+                findings.append(
+                    self._build_finding(
+                        finding_id=f"category_{cat_key}",
+                        category=cat_key,
+                        title=f"Особый правовой режим: {title}",
+                        description=(
+                            f"Реклама категории «{title}». Обратите внимание на "
+                            f"специальные требования законодательства о рекламе:"
+                        ),
+                        risk_level=cat.get("risk_level", "medium"),
+                        law_refs=cat.get("law_refs", []),
+                        liability_refs=cat.get("liability_refs", []),
+                        practice_refs=cat.get("practice_refs", []),
+                        mitigation=list(prohibitions),
+                        evidence=None,
+                    )
                 )
-            )
 
             # 2) Проверка обязательных дисклеймеров (всегда обязательны для категории).
             for disc in cat.get("required_disclaimers", []):

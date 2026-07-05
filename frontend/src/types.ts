@@ -43,6 +43,7 @@ export interface Finding {
 
 export interface ReportMeta {
   input_type: InputType
+  channel?: string
   llm_used: boolean
   llm_provider?: string | null
   rules_findings: number

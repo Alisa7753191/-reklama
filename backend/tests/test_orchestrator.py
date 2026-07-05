@@ -1,6 +1,6 @@
 """Тесты оркестратора: агрегация уровня риска, дедуп, деградация без LLM."""
 from app.analysis.orchestrator import Analyzer
-from app.models import InputType, RiskLevel
+from app.models import Channel, InputType, RiskLevel
 
 analyzer = Analyzer()
 
@@ -57,6 +57,21 @@ def test_firm_name_survives_dedupe_for_credit():
     ids = [f.id for f in report.findings]
     assert any("firm_name" in i for i in ids)
     assert any("credit_warning" in i for i in ids)
+
+
+def test_marking_risks_only_for_internet_channel():
+    text = "Купите наши товары прямо сейчас"
+    internet = analyzer.analyze(text=text, input_type=InputType.text, channel=Channel.internet)
+    sms = analyzer.analyze(text=text, input_type=InputType.text, channel=Channel.sms)
+    internet_ids = {f.id for f in internet.findings}
+    sms_ids = {f.id for f in sms.findings}
+    # В интернете — маркировка требуется:
+    assert "erid_missing" in internet_ids
+    assert "reklama_label_missing" in internet_ids
+    # В СМС — маркировка ERID/«реклама» не применяется (ст. 18.1 только интернет):
+    assert "erid_missing" not in sms_ids
+    assert "reklama_label_missing" not in sms_ids
+    assert sms.meta.channel == Channel.sms
 
 
 def test_risk_warning_phrase_not_duplicated():

@@ -18,3 +18,13 @@ export const SOURCE_LABEL: Record<string, string> = {
   rule: 'Правило',
   llm: 'ИИ-анализ',
 }
+
+export const CHANNEL_LABEL: Record<string, string> = {
+  internet: 'Интернет',
+  sms: 'СМС / рассылка',
+  email: 'E-mail',
+  tv: 'ТВ',
+  radio: 'Радио',
+  print: 'Печать',
+  outdoor: 'Наружная',
+}

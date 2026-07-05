@@ -156,6 +156,35 @@ def test_credit_findings_cite_specific_parts_of_art28():
     assert any("3.2" in lb.article for lb in psk.legal_basis)
 
 
+def test_deposit_terms_not_flagged_without_financial_condition():
+    # Письмо ФАС КТ/85530/23: риск только «если сообщается хотя бы одно условие».
+    assert "cond_deposit_deposit_terms" not in _ids("Вклад с высоким доходом")
+    assert "cond_deposit_deposit_terms" not in _ids("Откройте вклад в ПАО Сбербанк")
+
+
+def test_deposit_terms_flagged_when_rate_stated():
+    assert "cond_deposit_deposit_terms" in _ids("Вклад 12% годовых")
+
+
+def test_deposit_terms_ok_when_conditions_disclosed():
+    ids = _ids("Вклад 12% годовых, срок 6 месяцев, с ежемесячной капитализацией")
+    assert "cond_deposit_deposit_terms" not in ids
+
+
+def test_no_category_card_when_specific_checks_cover_it():
+    # У кредита все требования покрыты отдельными проверками — общая карточка
+    # «Особый правовой режим» не выдаётся (не дублирует фирменное наименование).
+    ids = _ids("Кредит в Сбере под 5% годовых")
+    assert "category_credit" not in ids
+    # Но категория всё равно определена.
+    assert "credit" in _cats("Кредит в Сбере под 5% годовых")
+
+
+def test_category_card_kept_when_it_carries_context():
+    # У алкоголя есть неповторяющиеся запреты (интернет-запрет и т.п.) — карточка нужна.
+    assert "category_alcohol" in _ids("Купите вино «Солнечное»")
+
+
 def test_mortgage_subject_to_same_credit_rules():
     # ч. 3.2: ипотека физлицам — те же требования, что и потребкредит.
     ids = _ids("Ипотека под 6% годовых в Сбере")

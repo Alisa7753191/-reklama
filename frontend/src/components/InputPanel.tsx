@@ -1,17 +1,27 @@
 import { useRef, useState } from 'react'
 import type { InputType } from '../types'
+import type { Channel } from '../api'
 
 interface Props {
   loading: boolean
-  onAnalyzeText: (text: string) => void
-  onAnalyzeUrl: (url: string) => void
-  onAnalyzeImage: (file: File) => void
+  onAnalyzeText: (text: string, channel: Channel) => void
+  onAnalyzeUrl: (url: string, channel: Channel) => void
+  onAnalyzeImage: (file: File, channel: Channel) => void
 }
 
 const TABS: { key: InputType; label: string }[] = [
   { key: 'text', label: 'Текст' },
   { key: 'url', label: 'Ссылка / лендинг' },
   { key: 'image', label: 'Изображение' },
+]
+
+const CHANNELS: { key: Channel; label: string }[] = [
+  { key: 'internet', label: 'Интернет' },
+  { key: 'sms', label: 'СМС / рассылка' },
+  { key: 'tv', label: 'ТВ' },
+  { key: 'radio', label: 'Радио' },
+  { key: 'print', label: 'Печать' },
+  { key: 'outdoor', label: 'Наружная' },
 ]
 
 const EXAMPLE =
@@ -23,6 +33,7 @@ export function InputPanel({ loading, onAnalyzeText, onAnalyzeUrl, onAnalyzeImag
   const [text, setText] = useState('')
   const [url, setUrl] = useState('')
   const [fileName, setFileName] = useState('')
+  const [channel, setChannel] = useState<Channel>('internet')
   const fileRef = useRef<HTMLInputElement>(null)
 
   return (
@@ -38,6 +49,25 @@ export function InputPanel({ loading, onAnalyzeText, onAnalyzeUrl, onAnalyzeImag
             {t.label}
           </button>
         ))}
+      </div>
+
+      <div className="channel-row">
+        <label htmlFor="channel">Канал распространения:</label>
+        <select
+          id="channel"
+          value={channel}
+          onChange={(e) => setChannel(e.target.value as Channel)}
+          disabled={loading}
+        >
+          {CHANNELS.map((c) => (
+            <option key={c.key} value={c.key}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+        <span className="channel-hint">
+          Риски маркировки (ERID, «реклама») — только для интернет-рекламы
+        </span>
       </div>
 
       {tab === 'text' && (
@@ -56,7 +86,7 @@ export function InputPanel({ loading, onAnalyzeText, onAnalyzeUrl, onAnalyzeImag
             </button>
             <button
               className="btn"
-              onClick={() => onAnalyzeText(text)}
+              onClick={() => onAnalyzeText(text, channel)}
               disabled={loading || !text.trim()}
             >
               {loading ? 'Проверяю…' : 'Проверить'}
@@ -79,7 +109,7 @@ export function InputPanel({ loading, onAnalyzeText, onAnalyzeUrl, onAnalyzeImag
             <span className="hint">Загрузим страницу и проверим её текст</span>
             <button
               className="btn"
-              onClick={() => onAnalyzeUrl(url)}
+              onClick={() => onAnalyzeUrl(url, channel)}
               disabled={loading || !url.trim()}
             >
               {loading ? 'Проверяю…' : 'Проверить'}
@@ -111,7 +141,7 @@ export function InputPanel({ loading, onAnalyzeText, onAnalyzeUrl, onAnalyzeImag
               className="btn"
               onClick={() => {
                 const file = fileRef.current?.files?.[0]
-                if (file) onAnalyzeImage(file)
+                if (file) onAnalyzeImage(file, channel)
               }}
               disabled={loading || !fileName}
             >

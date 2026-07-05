@@ -46,6 +46,9 @@
     font-family:inherit;color:var(--text);background:var(--surface-2);resize:vertical;outline:none;min-height:130px}
   textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 18%,transparent)}
   .actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:13px;flex-wrap:wrap}
+  .channel{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+  .channel select{font-family:inherit;font-size:13px;padding:6px 9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)}
+  .chan-note{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12.5px;color:var(--muted);margin-bottom:14px}
   .btn{background:var(--primary);color:#fff;border:none;border-radius:10px;padding:11px 26px;font-size:15px;
     font-weight:650;cursor:pointer}
   .btn:hover{background:var(--primary-ink)}
@@ -131,7 +134,18 @@
     <span class="eyebrow">Рекламный текст для проверки</span>
     <textarea id="input" placeholder="Вставьте рекламный текст, объявление, пост или слоган…"></textarea>
     <div class="actions">
-      <button class="linkbtn" id="exampleBtn">Подставить пример</button>
+      <div class="channel">
+        <label for="channel">Канал:</label>
+        <select id="channel">
+          <option value="internet">Интернет</option>
+          <option value="sms">СМС / рассылка</option>
+          <option value="tv">ТВ</option>
+          <option value="radio">Радио</option>
+          <option value="print">Печать</option>
+          <option value="outdoor">Наружная</option>
+        </select>
+        <button class="linkbtn" id="exampleBtn">Пример</button>
+      </div>
       <button class="btn" id="checkBtn">Проверить</button>
     </div>
   </section>
@@ -182,7 +196,7 @@ function detectCategories(text, stemSet){
   return found;
 }
 
-function runGeneralRules(text, stemSet, low){
+function runGeneralRules(text, stemSet, low, isInternet){
   const out = [];
   for(const id in KB.rules){ const r = KB.rules[id]; let matched=false, ev=null; const type=r.type;
     if(type === "lemma_any"){
@@ -196,6 +210,8 @@ function runGeneralRules(text, stemSet, low){
     } else if(type === "regex_any"){
       for(const p of (r.patterns_regex||[])){ const m=text.match(new RegExp(p,"i")); if(m){ matched=true; ev=snippet(text,m.index,m[0].length); break; } }
     } else if(type === "absent_all"){
+      // Маркировка ERID/«реклама» (ст. 18.1) — только для интернет-рекламы.
+      if(!isInternet){ continue; }
       const any = (r.patterns_regex||[]).some(p=>new RegExp(p,"i").test(text));
       if(!any){ matched=true; ev=null; }
     } else if(type === "conditional"){
@@ -212,10 +228,10 @@ function label(item, fallback){ const l=item.label; if(l) return l; const t=(fal
 function runCategoryRules(text, cats, low){
   const out = [];
   for(const key of cats){ const c = KB.categories[key]; const title = c.title || key; const proh = c.prohibitions || [];
-    out.push(mk("category_"+key, key, "Особый правовой режим: "+title,
-      "Обнаружена реклама категории «"+title+"». Для неё действуют специальные требования законодательства о рекламе — см. пункты ниже.",
-      c.risk_level||"medium", c.law_refs, c.liability_refs, c.practice_refs,
-      proh.length ? proh.slice() : ["Сверьтесь с требованиями закона к данной категории"], null));
+    // Карточка категории — только если есть неповторяющийся контекст (непустой prohibitions).
+    if(proh.length) out.push(mk("category_"+key, key, "Особый правовой режим: "+title,
+      "Реклама категории «"+title+"». Обратите внимание на специальные требования законодательства о рекламе:",
+      c.risk_level||"medium", c.law_refs, c.liability_refs, c.practice_refs, proh.slice(), null));
     for(const d of (c.required_disclaimers||[])){
       const present = (d.patterns||[]).some(p=>low.includes(p.toLowerCase()));
       if(!present) out.push(mk("disclaimer_"+key+"_"+d.id, key, "Не указано обязательное: "+label(d,d.text),
@@ -241,15 +257,17 @@ function runCategoryRules(text, cats, low){
   return out;
 }
 
-function analyze(text){
+function analyze(text, channel){
+  channel = channel || "internet";
+  const isInternet = channel === "internet";
   const low = text.toLowerCase(); const stemSet = new Set(tokens(text).map(stem));
   const cats = detectCategories(text, stemSet);
-  let f = runGeneralRules(text, stemSet, low).concat(runCategoryRules(text, cats, low));
+  let f = runGeneralRules(text, stemSet, low, isInternet).concat(runCategoryRules(text, cats, low));
   const seen = new Set(); const uniq = [];
   for(const x of f){ const k=x.title.toLowerCase()+"|"+((x.evidence||"").toLowerCase()); if(seen.has(k)) continue; seen.add(k); uniq.push(x); }
   uniq.sort((a,b)=>ORDER[b.risk_level]-ORDER[a.risk_level] || (a.source==="Правило"?-1:1));
   const overall = uniq.length ? uniq.reduce((m,x)=>ORDER[x.risk_level]>ORDER[m]?x.risk_level:m, "low") : "low";
-  return { overall, findings: uniq, cats };
+  return { overall, findings: uniq, cats, channel, isInternet };
 }
 
 /* ---------- Рендер ---------- */
@@ -278,6 +296,8 @@ function render(res){
     '<div><div class="hero__label">Итоговый уровень риска</div><div class="hero__level hero__level--'+res.overall+'">'+LEVEL_RU[res.overall]+'</div><div class="hero__sub">'+esc(sub)+'</div></div></div>';
   html += '<div class="counts">'+["critical","high","medium","low"].map(k=>'<span class="count"><span class="swatch" style="background:var(--'+k+')"></span>'+LEVEL_RU[k]+': <b>'+counts[k]+'</b></span>').join("")+'</div>';
   if(res.cats.length) html += '<div class="chips"><span class="eyebrow">Категории:</span>'+res.cats.map(c=>'<span class="chip">'+esc(KB.categories[c].title)+'</span>').join("")+'</div>';
+  if(!res.isInternet){ const CH={sms:"СМС / рассылка",tv:"ТВ",radio:"Радио",print:"Печать",outdoor:"Наружная",email:"E-mail"};
+    html += '<div class="chan-note">Канал: <b>'+esc(CH[res.channel]||res.channel)+'</b>. Риски маркировки интернет-рекламы (ERID, пометка «реклама») не показаны — ст. 18.1 применяется только к рекламе в сети «Интернет». Для СМС/рассылок действует ст. 18 (предварительное согласие абонента).</div>'; }
 
   if(n===0){ html += '<div class="empty">✅ Явных нарушений не найдено. Это не заменяет проверку юристом.</div>'; }
   else {
@@ -304,7 +324,7 @@ function render(res){
 
 /* ---------- События ---------- */
 const EXAMPLE = "Наш банк — №1 в России! Кредит наличными от 5% годовых без справок. Вклад с гарантированной ставкой 12% годовых. Оставьте заявку — перезвоним за 5 минут!";
-document.getElementById("checkBtn").onclick = ()=>{ const t=document.getElementById("input").value.trim(); if(!t) return; render(analyze(t)); };
+document.getElementById("checkBtn").onclick = ()=>{ const t=document.getElementById("input").value.trim(); if(!t) return; const ch=document.getElementById("channel").value; render(analyze(t, ch)); };
 document.getElementById("exampleBtn").onclick = ()=>{ document.getElementById("input").value = EXAMPLE; };
 document.getElementById("input").addEventListener("keydown", e=>{ if((e.ctrlKey||e.metaKey) && e.key==="Enter") document.getElementById("checkBtn").click(); });
 

@@ -7,6 +7,7 @@ from ..config import DISCLAIMER, settings
 from ..knowledge.loader import get_knowledge
 from ..llm import get_provider
 from ..models import (
+    Channel,
     Finding,
     InputType,
     Report,
@@ -77,10 +78,18 @@ class Analyzer:
         text: str,
         input_type: InputType,
         extra_warnings: List[str] | None = None,
-        is_internet_ad: bool = True,
+        channel: Channel = Channel.internet,
     ) -> Report:
         warnings = list(extra_warnings or [])
         text = text or ""
+        # Требования к маркировке (ERID/«реклама», ст. 18.1) применяются только к
+        # рекламе в сети «Интернет». Для СМС, ТВ, радио, печати, наружной — не выдаём.
+        is_internet_ad = channel == Channel.internet
+        if not is_internet_ad:
+            warnings.append(
+                f"Канал «{channel.value}»: риски маркировки интернет-рекламы "
+                f"(ERID, пометка «реклама») не применяются (ст. 18.1 — только интернет)."
+            )
 
         if not text.strip():
             warnings.append("Пустой текст для анализа — проверять нечего.")
@@ -93,6 +102,7 @@ class Analyzer:
                 disclaimer=DISCLAIMER,
                 meta=ReportMeta(
                     input_type=input_type,
+                    channel=channel,
                     llm_used=False,
                     llm_provider=None,
                     warnings=warnings,
@@ -128,6 +138,7 @@ class Analyzer:
             disclaimer=DISCLAIMER,
             meta=ReportMeta(
                 input_type=input_type,
+                channel=channel,
                 llm_used=provider.available,
                 llm_provider=provider.name if provider.available else None,
                 rules_findings=len(rule_findings),

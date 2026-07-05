@@ -36,13 +36,14 @@ def analyze(req: AnalyzeRequest) -> Report:
             text=result.text,
             input_type=InputType.url,
             extra_warnings=result.warnings,
+            channel=req.channel,
         )
 
     # По умолчанию — текстовый анализ.
     text = ingest_text(req.text or "")
     if not text:
         raise HTTPException(status_code=400, detail="Не передан текст для анализа.")
-    return _analyzer.analyze(text=text, input_type=InputType.text)
+    return _analyzer.analyze(text=text, input_type=InputType.text, channel=req.channel)
 
 
 @router.post("/analyze/image", response_model=Report)

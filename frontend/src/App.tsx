@@ -54,8 +54,8 @@ export default function App() {
       <main className="main">
         <InputPanel
           loading={loading}
-          onAnalyzeText={(t) => run(() => analyzeText(t))}
-          onAnalyzeUrl={(u) => run(() => analyzeUrl(u))}
+          onAnalyzeText={(t, ch) => run(() => analyzeText(t, ch))}
+          onAnalyzeUrl={(u, ch) => run(() => analyzeUrl(u, ch))}
           onAnalyzeImage={(f) => run(() => analyzeImage(f))}
         />
 

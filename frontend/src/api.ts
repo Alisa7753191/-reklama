@@ -1,5 +1,7 @@
 import type { Report } from './types'
 
+export type Channel = 'internet' | 'sms' | 'email' | 'tv' | 'radio' | 'print' | 'outdoor'
+
 const BASE = '/api'
 
 async function handle(resp: Response): Promise<Report> {
@@ -16,20 +18,20 @@ async function handle(resp: Response): Promise<Report> {
   return resp.json()
 }
 
-export async function analyzeText(text: string): Promise<Report> {
+export async function analyzeText(text: string, channel: Channel = 'internet'): Promise<Report> {
   const resp = await fetch(`${BASE}/analyze`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ input_type: 'text', text }),
+    body: JSON.stringify({ input_type: 'text', text, channel }),
   })
   return handle(resp)
 }
 
-export async function analyzeUrl(url: string): Promise<Report> {
+export async function analyzeUrl(url: string, channel: Channel = 'internet'): Promise<Report> {
   const resp = await fetch(`${BASE}/analyze`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ input_type: 'url', url }),
+    body: JSON.stringify({ input_type: 'url', url, channel }),
   })
   return handle(resp)
 }
