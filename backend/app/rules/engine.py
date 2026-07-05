@@ -231,8 +231,10 @@ class RulesEngine:
                                 f"Категория «{title}». Не обнаружено обязательное: "
                                 f"{disc.get('text', '')}."
                             ),
-                            risk_level=cat.get("risk_level", "medium"),
-                            law_refs=cat.get("law_refs", []),
+                            risk_level=disc.get("risk_level", cat.get("risk_level", "medium")),
+                            # У требования может быть своя точная норма (напр. ст. 28 ч. 3.1);
+                            # иначе — общие статьи категории.
+                            law_refs=disc.get("law_refs", cat.get("law_refs", [])),
                             liability_refs=cat.get("liability_refs", []),
                             practice_refs=cat.get("practice_refs", []),
                             mitigation=[f"Добавьте: {disc.get('text', '')}"],
@@ -260,8 +262,8 @@ class RulesEngine:
                                 f"Категория «{title}». В рекламе указано условие «{triggered}», "
                                 f"но отсутствует обязательное раскрытие: {disc.get('text', '')}."
                             ),
-                            risk_level=cat.get("risk_level", "medium"),
-                            law_refs=cat.get("law_refs", []),
+                            risk_level=disc.get("risk_level", cat.get("risk_level", "medium")),
+                            law_refs=disc.get("law_refs", cat.get("law_refs", [])),
                             liability_refs=cat.get("liability_refs", []),
                             practice_refs=cat.get("practice_refs", []),
                             mitigation=[f"Добавьте: {disc.get('text', '')}"],
@@ -283,7 +285,7 @@ class RulesEngine:
                             title=f"Запрещённая формулировка: {_label(fp, fp.get('text', ''))}",
                             description=f"Категория «{title}». " + fp.get("text", "Обнаружена запрещённая формулировка."),
                             risk_level=fp.get("risk_level", cat.get("risk_level", "high")),
-                            law_refs=cat.get("law_refs", []),
+                            law_refs=fp.get("law_refs", cat.get("law_refs", [])),
                             liability_refs=cat.get("liability_refs", []),
                             practice_refs=cat.get("practice_refs", []),
                             mitigation=["Удалите или переформулируйте: " + fp.get("text", "")],

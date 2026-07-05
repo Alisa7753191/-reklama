@@ -138,6 +138,46 @@ def test_credit_psk_ok_when_disclosed():
     assert "cond_credit_credit_psk" not in ids
 
 
+def test_credit_psk_abbreviation_alone_is_not_enough():
+    # ч. 3 ст. 28 требует слов «полная стоимость кредита (займа)» — «ПСК» не хватает.
+    assert "cond_credit_credit_psk" in _ids("Кредит, ставка 5% годовых, ПСК 5-8%")
+
+
+def test_credit_findings_cite_specific_parts_of_art28():
+    findings, _ = engine.analyze("Кредит в Сбере под 5% годовых!")
+    by_id = {f.id: f for f in findings}
+    warn = by_id["disclaimer_credit_credit_warning"]
+    assert any("3.1" in lb.article for lb in warn.legal_basis)
+    firm = by_id["disclaimer_credit_firm_name"]
+    assert any(lb.article == "ст. 28, ч. 1" for lb in firm.legal_basis)
+    psk = by_id["cond_credit_credit_psk"]
+    assert any(lb.article == "ст. 28, ч. 3" for lb in psk.legal_basis)
+    # ч. 3.2 (ипотека) цитируется как сопутствующая норма
+    assert any("3.2" in lb.article for lb in psk.legal_basis)
+
+
+def test_mortgage_subject_to_same_credit_rules():
+    # ч. 3.2: ипотека физлицам — те же требования, что и потребкредит.
+    ids = _ids("Ипотека под 6% годовых в Сбере")
+    assert "cond_credit_credit_psk" in ids
+    assert any("credit_warning" in i for i in ids)
+
+
+def test_fully_compliant_credit_ad_is_clean():
+    text = (
+        "ПАО Сбербанк. Кредит: полная стоимость кредита от 5,1% до 8,3%. "
+        "Ставка 5% годовых. Изучите все условия кредита (займа) на сайте "
+        "sberbank.ru в разделе «Кредиты». Оценивайте свои финансовые "
+        "возможности и риски."
+    )
+    findings, _ = engine.analyze(text)
+    credit_issues = [
+        f for f in findings
+        if f.category == "credit" and f.id != "category_credit"
+    ]
+    assert credit_issues == []
+
+
 def test_credit_link_required_with_phrase():
     assert "cond_credit_credit_link" in _ids(
         "Кредит. Изучите все условия кредита. ПАО Банк."

@@ -219,8 +219,8 @@ function runCategoryRules(text, cats, low){
     for(const d of (c.required_disclaimers||[])){
       const present = (d.patterns||[]).some(p=>low.includes(p.toLowerCase()));
       if(!present) out.push(mk("disclaimer_"+key+"_"+d.id, key, "Не указано обязательное: "+label(d,d.text),
-        "Категория «"+title+"». Не обнаружено обязательное: "+d.text+".", c.risk_level||"medium",
-        c.law_refs, c.liability_refs, c.practice_refs, ["Добавьте: "+d.text], null));
+        "Категория «"+title+"». Не обнаружено обязательное: "+d.text+".", d.risk_level||c.risk_level||"medium",
+        d.law_refs||c.law_refs, c.liability_refs, c.practice_refs, ["Добавьте: "+d.text], null));
     }
     for(const d of (c.conditional_disclaimers||[])){
       const trig = (d.trigger_patterns||[]).find(t=>low.includes(t.toLowerCase()));
@@ -228,14 +228,14 @@ function runCategoryRules(text, cats, low){
       if(trig && !sat){ const i=low.indexOf(trig.toLowerCase());
         out.push(mk("cond_"+key+"_"+d.id, key, "Не раскрыто обязательное: "+label(d,d.text),
           "Категория «"+title+"». В рекламе указано условие «"+trig+"», но отсутствует обязательное раскрытие: "+d.text+".",
-          c.risk_level||"medium", c.law_refs, c.liability_refs, c.practice_refs, ["Добавьте: "+d.text], snippet(text,i,trig.length))); }
+          d.risk_level||c.risk_level||"medium", d.law_refs||c.law_refs, c.liability_refs, c.practice_refs, ["Добавьте: "+d.text], snippet(text,i,trig.length))); }
     }
     for(const fp of (c.forbidden_patterns||[])){
       const hit = (fp.patterns||[]).find(p=>low.includes(p.toLowerCase()));
       if(hit){ const i=low.indexOf(hit.toLowerCase());
         out.push(mk("forbidden_"+key+"_"+fp.id, key, "Запрещённая формулировка: "+label(fp,fp.text),
           "Категория «"+title+"». "+(fp.text || "Обнаружена запрещённая формулировка."), fp.risk_level || c.risk_level || "high",
-          c.law_refs, c.liability_refs, c.practice_refs, ["Удалите или переформулируйте: "+(fp.text||"")], snippet(text,i,hit.length))); }
+          fp.law_refs||c.law_refs, c.liability_refs, c.practice_refs, ["Удалите или переформулируйте: "+(fp.text||"")], snippet(text,i,hit.length))); }
     }
   }
   return out;
