@@ -56,7 +56,7 @@ export default function App() {
           loading={loading}
           onAnalyzeText={(t, ch) => run(() => analyzeText(t, ch))}
           onAnalyzeUrl={(u, ch) => run(() => analyzeUrl(u, ch))}
-          onAnalyzeImage={(f) => run(() => analyzeImage(f))}
+          onAnalyzeImage={(f, ch) => run(() => analyzeImage(f, ch))}
         />
 
         {error && <div className="error">❌ {error}</div>}

@@ -36,9 +36,10 @@ export async function analyzeUrl(url: string, channel: Channel = 'internet'): Pr
   return handle(resp)
 }
 
-export async function analyzeImage(file: File): Promise<Report> {
+export async function analyzeImage(file: File, channel: Channel = 'internet'): Promise<Report> {
   const form = new FormData()
   form.append('file', file)
+  form.append('channel', channel)
   const resp = await fetch(`${BASE}/analyze/image`, {
     method: 'POST',
     body: form,

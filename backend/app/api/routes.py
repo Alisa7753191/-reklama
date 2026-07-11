@@ -8,7 +8,7 @@ from ..config import settings
 from ..ingest.image import ingest_image
 from ..ingest.text import ingest_text
 from ..ingest.url import ingest_url
-from ..models import AnalyzeRequest, InputType, Report
+from ..models import AnalyzeRequest, Channel, InputType, Report
 
 router = APIRouter()
 _analyzer = Analyzer()
@@ -47,7 +47,10 @@ def analyze(req: AnalyzeRequest) -> Report:
 
 
 @router.post("/analyze/image", response_model=Report)
-async def analyze_image(file: UploadFile = File(...)) -> Report:
+async def analyze_image(
+    file: UploadFile = File(...),
+    channel: Channel = Form(Channel.internet),
+) -> Report:
     """Анализ рекламного креатива (изображения) через OCR/vision."""
     media_type = file.content_type or "image/png"
     if media_type not in _ALLOWED_IMAGE_TYPES:
@@ -61,8 +64,14 @@ async def analyze_image(file: UploadFile = File(...)) -> Report:
         raise HTTPException(status_code=400, detail="Пустой файл изображения.")
 
     result = ingest_image(image_bytes, media_type=media_type)
+    warnings = list(result.warnings)
+    # Визуальные наблюдения показываем отдельной заметкой, но НЕ отдаём в движок правил
+    # (чтобы слова вроде «erid» из наблюдений не глушили проверку маркировки).
+    if result.visual:
+        warnings.append(f"📷 Визуальные наблюдения (проверьте вручную): {result.visual}")
     return _analyzer.analyze(
         text=result.text,
         input_type=InputType.image,
-        extra_warnings=result.warnings,
+        extra_warnings=warnings,
+        channel=channel,
     )

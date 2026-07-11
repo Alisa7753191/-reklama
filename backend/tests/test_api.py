@@ -45,3 +45,19 @@ def test_analyze_image_rejects_bad_type():
         files={"file": ("test.txt", b"hello", "text/plain")},
     )
     assert resp.status_code == 400
+
+
+def test_image_split_text_visual_keeps_marking_out_of_engine():
+    # Блок «ВИЗУАЛ» (со словом «erid») не должен попадать в текст для движка,
+    # иначе проверка маркировки решит, что erid присутствует.
+    from app.ingest.image import _split_text_visual
+
+    raw = (
+        "ТЕКСТ:\nВклад 20% годовых. АЛЬФА\n"
+        "ВИЗУАЛ:\nТолько логотип, фирменного наименования нет; erid не виден."
+    )
+    text, visual = _split_text_visual(raw)
+    assert "erid" not in text.lower()
+    assert text.startswith("Вклад 20% годовых")
+    assert "erid" in visual.lower()
+    assert not visual.lower().startswith("визуал")
