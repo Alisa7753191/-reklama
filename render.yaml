@@ -1,0 +1,15 @@
+# Render Blueprint — деплой одним web-сервисом из корневого Dockerfile.
+# Как применить: см. DEPLOY.md. Ключ ANTHROPIC_API_KEY задаётся в панели Render
+# (sync: false — не хранится в репозитории).
+services:
+  - type: web
+    name: pravoreklama
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-opus-4-8
