@@ -166,9 +166,34 @@ def test_deposit_terms_flagged_when_rate_stated():
     assert "cond_deposit_deposit_terms" in _ids("Вклад 12% годовых")
 
 
-def test_deposit_terms_ok_when_conditions_disclosed():
-    ids = _ids("Вклад 12% годовых, срок 6 месяцев, с ежемесячной капитализацией")
-    assert "cond_deposit_deposit_terms" not in ids
+def test_deposit_terms_flagged_by_default_even_when_disclosed():
+    # Дефолт: при любом финусловии риск раскрытия условий выводится ВСЕГДА,
+    # даже если условия на вид раскрыты (полноту оценивает юрист).
+    findings, _ = engine.analyze(
+        "Вклад 12% годовых, срок 6 месяцев, с ежемесячной капитализацией"
+    )
+    ids = {f.id for f in findings}
+    assert "cond_deposit_deposit_terms" in ids
+    note = next(f for f in findings if f.id == "cond_deposit_deposit_terms")
+    assert "юрист" in note.description  # отметка о проверке полноты юристом
+
+
+def test_deposit_terms_flagged_when_only_term_or_sum_stated():
+    # Финусловие — не только ставка: срок или сумма тоже триггерят правило 2.
+    assert "cond_deposit_deposit_terms" in _ids("Вклад на 6 месяцев")
+    assert "cond_deposit_deposit_terms" in _ids("Вклад от 100 000 ₽")
+
+
+def test_deposit_no_special_regime_card():
+    # Мусорная карточка «Особый правовой режим: Вклады» не должна выводиться.
+    ids = _ids("Вклад 12% годовых в АО «Банк»")
+    assert "category_deposit" not in ids
+
+
+def test_zero_currency_not_matched_inside_amount():
+    # «0 ₽» не должно ложно матчиться внутри «100 000 ₽».
+    ids = _ids("Вклад 15%, сумма от 100 000 ₽. АО «Банк»")
+    assert "free_bait" not in ids
 
 
 def test_no_category_card_when_specific_checks_cover_it():

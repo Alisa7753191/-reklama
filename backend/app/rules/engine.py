@@ -22,6 +22,22 @@ def _snippet(text: str, match_start: int, match_len: int, radius: int = 40) -> s
     return f"{prefix}{text[start:end].strip()}{suffix}"
 
 
+def _find_phrase(low: str, phrase: str) -> int:
+    """Индекс вхождения фразы. Для числовых фраз («0 ₽», «0 рублей») требуем, чтобы
+    перед совпадением не стояла цифра, иначе «0 ₽» ложно матчится в «100 000 ₽»."""
+    p = phrase.lower()
+    numeric = p[:1].isdigit()
+    start = 0
+    while True:
+        idx = low.find(p, start)
+        if idx == -1:
+            return -1
+        if numeric and idx > 0 and low[idx - 1].isdigit():
+            start = idx + 1
+            continue
+        return idx
+
+
 def _label(item: dict, fallback_text: str) -> str:
     """Короткая метка требования для заголовка находки (уникальна в рамках
     категории, чтобы разные требования не схлопывались дедупликацией)."""
@@ -129,7 +145,7 @@ class RulesEngine:
 
             elif rtype == "phrase_any":
                 for phrase in rule.get("terms", []):
-                    idx = low.find(phrase.lower())
+                    idx = _find_phrase(low, phrase)
                     if idx != -1:
                         matched = True
                         evidence = _snippet(text, idx, len(phrase))
@@ -243,25 +259,36 @@ class RulesEngine:
                         )
                     )
 
-            # 3) Условные дисклеймеры: обязательны, только если сработал триггер
-            #    (например, для вклада указана ставка — тогда нужно раскрыть все условия).
+            # 3) Условные дисклеймеры: обязательны, если сработал триггер.
+            #    По умолчанию (always_when_triggered) — риск выводится ВСЕГДА при наличии
+            #    триггера (напр. для вклада указано любое финусловие → правило ст. 28
+            #    ч. 2 п. 2 применимо; полноту раскрытия оценивает юрист). Иначе — только
+            #    если ни один обязательный элемент не раскрыт.
             for disc in cat.get("conditional_disclaimers", []):
                 triggers = disc.get("trigger_patterns", [])
                 required = disc.get("required_patterns", [])
+                always = disc.get("always_when_triggered", False)
                 triggered = next(
                     (t for t in triggers if t.lower() in low), None
                 )
                 satisfied = any(r.lower() in low for r in required)
-                if triggered and not satisfied:
+                if triggered and (always or not satisfied):
                     idx = low.find(triggered.lower())
+                    note = ""
+                    if always and satisfied:
+                        note = (
+                            " Часть условий, возможно, уже раскрыта — полноту и "
+                            "читаемость проверяет юрист (риск может быть снят/понижен)."
+                        )
                     findings.append(
                         self._build_finding(
                             finding_id=f"cond_{cat_key}_{disc['id']}",
                             category=cat_key,
                             title=f"Не раскрыто обязательное: {_label(disc, disc.get('text', ''))}",
                             description=(
-                                f"Категория «{title}». В рекламе указано условие «{triggered}», "
-                                f"но отсутствует обязательное раскрытие: {disc.get('text', '')}."
+                                f"Категория «{title}». В рекламе указано условие «{triggered}» "
+                                f"— необходимо раскрыть иные условия, влияющие на доход/расход: "
+                                f"{disc.get('text', '')}.{note}"
                             ),
                             risk_level=disc.get("risk_level", cat.get("risk_level", "medium")),
                             law_refs=disc.get("law_refs", cat.get("law_refs", [])),
