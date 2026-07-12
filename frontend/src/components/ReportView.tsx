@@ -38,11 +38,7 @@ export function ReportView({ report }: { report: Report }) {
       <div className="report__meta">
         {r.meta.channel && <span>Канал: {CHANNEL_LABEL[r.meta.channel] ?? r.meta.channel}</span>}
         <span>Правил: {r.meta.rules_findings}</span>
-        <span>ИИ-находок: {r.meta.llm_findings}</span>
-        <span>
-          ИИ-анализ:{' '}
-          {r.meta.llm_used ? `вкл (${r.meta.llm_provider})` : 'выкл (только правила)'}
-        </span>
+        {r.meta.llm_used && <span>ИИ-находок: {r.meta.llm_findings}</span>}
       </div>
 
       {r.meta.warnings.length > 0 && (

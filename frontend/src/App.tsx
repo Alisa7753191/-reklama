@@ -41,11 +41,6 @@ export default function App() {
             </p>
           </div>
         </div>
-        {llmEnabled === false && (
-          <div className="header__badge header__badge--warn">
-            Режим «только правила» · ИИ-анализ выключен
-          </div>
-        )}
         {llmEnabled === true && (
           <div className="header__badge header__badge--ok">Гибрид: правила + ИИ</div>
         )}
