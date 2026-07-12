@@ -38,6 +38,26 @@ def _find_phrase(low: str, phrase: str) -> int:
         return idx
 
 
+def _conditional_trigger(rule: dict, low: str) -> Optional[str]:
+    """Сработавший триггер условного правила (для evidence) или None.
+    Срабатывает, если найдена любая фраза из trigger_patterns ЛИБО в КАЖДОЙ группе
+    trigger_groups есть хотя бы одно совпадение. Группы ловят со-встречаемость
+    («купи» … «онлайн») с любыми словами между — жёсткие фразы этого не умеют."""
+    for t in rule.get("trigger_patterns", []):
+        if t.lower() in low:
+            return t
+    groups = rule.get("trigger_groups", [])
+    if groups:
+        last: Optional[str] = None
+        for g in groups:
+            hit = next((p for p in g if p.lower() in low), None)
+            if hit is None:
+                return None
+            last = hit
+        return last
+    return None
+
+
 def _label(item: dict, fallback_text: str) -> str:
     """Короткая метка требования для заголовка находки (уникальна в рамках
     категории, чтобы разные требования не схлопывались дедупликацией)."""
@@ -191,9 +211,7 @@ class RulesEngine:
             elif rtype == "conditional":
                 # Сработать, если есть триггер, но нет ни одного обязательного элемента
                 # (например: онлайн-заказ без реквизитов продавца — ст. 8).
-                trig = next(
-                    (t for t in rule.get("trigger_patterns", []) if t.lower() in low), None
-                )
+                trig = _conditional_trigger(rule, low)
                 if trig and not any(
                     r.lower() in low for r in rule.get("required_patterns", [])
                 ):

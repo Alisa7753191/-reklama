@@ -225,7 +225,14 @@ function runGeneralRules(text, stemSet, low, isInternet){
       const any = (r.patterns_regex||[]).some(p=>new RegExp(p,"i").test(text));
       if(!any){ matched=true; ev=null; }
     } else if(type === "conditional"){
-      const trig = (r.trigger_patterns||[]).find(t=>low.includes(t.toLowerCase()));
+      // Триггер: любая фраза trigger_patterns ЛИБО в каждой группе trigger_groups
+      // есть совпадение (ловит «купи … онлайн» с любыми словами между).
+      let trig = (r.trigger_patterns||[]).find(t=>low.includes(t.toLowerCase()));
+      if(!trig && (r.trigger_groups||[]).length){
+        let ok=true, last=null;
+        for(const g of r.trigger_groups){ const h=g.find(p=>low.includes(p.toLowerCase())); if(!h){ ok=false; break; } last=h; }
+        if(ok) trig=last;
+      }
       if(trig && !(r.required_patterns||[]).some(x=>low.includes(x.toLowerCase()))){ matched=true; const i=low.indexOf(trig.toLowerCase()); ev=snippet(text,i,trig.length); }
     }
     if(matched) out.push(mk(id, id, r.title, r.description, r.risk_level, r.law_refs, r.liability_refs, r.practice_refs, r.mitigation, ev));

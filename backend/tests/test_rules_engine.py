@@ -146,6 +146,18 @@ def test_distance_selling_flagged_without_seller_details():
     assert "distance_selling" in _ids("Купи смарт-часы на сайте — доставка по России")
 
 
+def test_distance_selling_co_occurrence_with_words_between():
+    # «купи … онлайн» с словами между должно срабатывать (группы триггеров).
+    assert "distance_selling" in _ids("купи товары онлайн")
+    assert "distance_selling" in _ids("Закажи кроссовки с доставкой")
+    assert "distance_selling" in _ids("Купить телефон в интернете")
+
+
+def test_distance_selling_not_triggered_by_online_service_without_purchase():
+    # «онлайн» без покупки товара — не дистанционная продажа.
+    assert "distance_selling" not in _ids("Консультация юриста онлайн")
+
+
 def test_distance_selling_ok_with_ogrn():
     assert "distance_selling" not in _ids(
         "Купите на сайте. Продавец ООО «Ромашка», г. Москва, ОГРН 1027700000000"
