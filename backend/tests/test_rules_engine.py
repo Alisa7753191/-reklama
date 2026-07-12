@@ -130,6 +130,32 @@ def test_promo_event_requires_terms():
     assert "promo_event" in _ids("Розыгрыш призов! Выиграй автомобиль при покупке")
 
 
+def test_promo_event_ok_with_terms_and_source():
+    # Указаны сроки и источник правил/организатора → риск не выставляется.
+    assert "promo_event" not in _ids(
+        "Розыгрыш авто. Сроки 01.06–31.08.2025. Организатор и правила на сайте"
+    )
+
+
+def test_promo_event_not_triggered_by_plain_discount():
+    # Скидочная акция — это не ст. 9 (стимулирующее мероприятие).
+    assert "promo_event" not in _ids("Скидка -20% на всё до конца недели")
+
+
+def test_distance_selling_flagged_without_seller_details():
+    assert "distance_selling" in _ids("Купи смарт-часы на сайте — доставка по России")
+
+
+def test_distance_selling_ok_with_ogrn():
+    assert "distance_selling" not in _ids(
+        "Купите на сайте. Продавец ООО «Ромашка», г. Москва, ОГРН 1027700000000"
+    )
+
+
+def test_distance_selling_not_triggered_offline():
+    assert "distance_selling" not in _ids("Магазин в ТЦ «Авиапарк», только офлайн-покупка")
+
+
 def test_firm_name_flagged_for_brand_only():
     # «Сбер» — бренд, а не фирменное наименование → должно флагаться (ст. 28 ч. 1).
     ids = _ids("Вклад в Сбере под 12% годовых")
