@@ -63,6 +63,18 @@ def test_category_deposit():
     assert "deposit" in _cats("Вклад «Доходный» — 12% годовых")
 
 
+def test_category_deposit_compound_forms():
+    # Слитные маркетинговые формы должны распознаваться как «вклад».
+    assert "deposit" in _cats("СУПЕРВКЛАД до 24% годовых")
+    assert "deposit" in _cats("Мегадепозит 18%")
+
+
+def test_category_deposit_no_false_positive_on_tab():
+    # «Вкладка»/«вкладыш» — не банковский вклад.
+    assert "deposit" not in _cats("Новая вкладка в браузере, удобный интерфейс")
+    assert "deposit" not in _cats("Рекламный вкладыш в журнале")
+
+
 def test_category_investment():
     assert "investment" in _cats("Инвестиции в облигации через брокера")
 

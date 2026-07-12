@@ -96,18 +96,35 @@ class RulesEngine:
         low = text.lower()
         detected: List[str] = []
         for cat_key, cat in self.kb.categories.items():
+            found = False
             for kw in cat.get("keywords", []):
                 if " " in kw or "-" in kw:
                     # Многословные/составные ключи — по подстроке.
                     if kw.lower() in low:
-                        detected.append(cat_key)
+                        found = True
                         break
                 else:
                     # Однословные ключи — только по лемме (целым словом), без подстроки,
                     # чтобы «ром» не срабатывал в «Ромашка», «промо»; «бар» — в «товар».
                     if morphology.lemmatize_term(kw) in lemmas:
-                        detected.append(cat_key)
+                        found = True
                         break
+            # Опциональные подстроки (opt-in для категории): ловят слово внутри слитных
+            # маркетинговых форм — напр. «вклад» в «Супервклад», «депозит» в «Мегадепозит».
+            # Матчим по словам и исключаем ложные формы (напр. «вкладка», «вкладыш»),
+            # чтобы подстрока не срабатывала где не надо.
+            if not found:
+                subs = [s.lower() for s in cat.get("keyword_substrings", [])]
+                if subs:
+                    excl = tuple(x.lower() for x in cat.get("keyword_substrings_exclude", []))
+                    for token in re.findall(r"[а-яёa-z]+", low):
+                        if excl and token.startswith(excl):
+                            continue
+                        if any(s in token for s in subs):
+                            found = True
+                            break
+            if found:
+                detected.append(cat_key)
         return detected
 
     # --- Общие правила ------------------------------------------------------

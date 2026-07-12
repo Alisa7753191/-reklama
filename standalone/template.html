@@ -187,11 +187,21 @@ function mk(id, cat, title, desc, risk, lawRefs, liabRefs, practiceRefs, fix, ev
 
 function detectCategories(text, stemSet){
   const low = text.toLowerCase(); const found = [];
-  for(const key in KB.categories){ const c = KB.categories[key];
+  for(const key in KB.categories){ const c = KB.categories[key]; let hit=false;
     for(const kw of (c.keywords||[])){
-      if(kw.includes(" ") || kw.includes("-")){ if(low.includes(kw.toLowerCase())){ found.push(key); break; } }
-      else { if(stemSet.has(lemmaTerm(kw))){ found.push(key); break; } }  // однословные — только целым словом
+      if(kw.includes(" ") || kw.includes("-")){ if(low.includes(kw.toLowerCase())){ hit=true; break; } }
+      else { if(stemSet.has(lemmaTerm(kw))){ hit=true; break; } }  // однословные — только целым словом
     }
+    // Подстроки для слитных форм («Супервклад», «Мегадепозит»), с исключениями («вкладка»).
+    if(!hit && (c.keyword_substrings||[]).length){
+      const subs = c.keyword_substrings.map(s=>s.toLowerCase());
+      const excl = (c.keyword_substrings_exclude||[]).map(s=>s.toLowerCase());
+      for(const tok of (low.match(/[а-яёa-z]+/g) || [])){
+        if(excl.some(x=>tok.startsWith(x))) continue;
+        if(subs.some(s=>tok.includes(s))){ hit=true; break; }
+      }
+    }
+    if(hit) found.push(key);
   }
   return found;
 }
