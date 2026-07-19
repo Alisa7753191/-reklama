@@ -355,14 +355,28 @@ def test_age_marking_ok_for_info_product_with_mark():
     assert "age_marking_missing" not in _ids("Премьера нового фильма в кино. 16+")
 
 
-def test_age_marking_required_for_mobile_app():
-    # Мобильное приложение — программа для ЭВМ = информационная продукция (436-ФЗ).
-    assert "age_marking_missing" in _ids("Скачайте наше приложение банка в App Store")
-    assert "age_marking_missing" in _ids("Мобильный банк СБОЛ — оплата в одно касание")
+def test_age_marking_required_for_app_as_product():
+    # Приложение как рекламируемый продукт (магазин/скачивание) без знака → флаг.
+    assert "age_marking_missing" in _ids("Скачайте наше приложение в App Store")
+    assert "age_marking_missing" in _ids("Приложение доступно в Google Play")
 
 
 def test_age_marking_ok_for_app_with_mark():
     assert "age_marking_missing" not in _ids("Приложение доступно в Google Play. 6+")
+
+
+def test_age_marking_not_triggered_by_app_as_channel():
+    # «Приложение» как канал (а не рекламируемая инфопродукция) — не триггер.
+    assert "age_marking_missing" not in _ids(
+        "Купи кофе и участвуй в розыгрыше! Заходи в приложение"
+    )
+    assert "age_marking_missing" not in _ids("Мобильный банк — оплата в одно касание")
+    assert "age_marking_missing" not in _ids("Оформи вклад в приложении")
+
+
+def test_age_marking_count_plus_is_not_age_sign():
+    # «1000+ фильмов» — это счётчик, не возрастной знак: риск остаётся.
+    assert "age_marking_missing" in _ids("Более 1000+ фильмов в подписке")
 
 
 def test_tobacco_uses_current_legal_basis_not_repealed_article():
