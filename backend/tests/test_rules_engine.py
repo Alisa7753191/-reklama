@@ -171,6 +171,20 @@ def test_distance_selling_not_triggered_for_financial_service():
     assert "distance_selling" not in _ids("Оформи кредит наличными")
 
 
+def test_distance_selling_excluded_for_explicit_offline():
+    # Явный офлайн снимает риск ст. 8.
+    assert "distance_selling" not in _ids("Купи хлеб в пекарне на углу")
+    assert "distance_selling" not in _ids("Купи кроссовки в нашем магазине")
+    assert "distance_selling" not in _ids("Приходите в салон и купите духи")
+
+
+def test_distance_selling_offline_exclusion_overridden_by_distance_signal():
+    # Офлайн-маркер + признак дистанционности (доставка/сайт/интернет-магазин) → риск есть.
+    assert "distance_selling" in _ids("Купи хлеб в пекарне, доставка по городу")
+    assert "distance_selling" in _ids("Купи на сайте или приходи в магазин")
+    assert "distance_selling" in _ids("Заказать телефон в интернет-магазине")
+
+
 def test_distance_selling_ok_with_ogrn():
     assert "distance_selling" not in _ids(
         "Купите на сайте. Продавец ООО «Ромашка», г. Москва, ОГРН 1027700000000"

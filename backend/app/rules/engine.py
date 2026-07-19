@@ -42,7 +42,16 @@ def _conditional_trigger(rule: dict, low: str) -> Optional[str]:
     """Сработавший триггер условного правила (для evidence) или None.
     Срабатывает, если найдена любая фраза из trigger_patterns ЛИБО в КАЖДОЙ группе
     trigger_groups есть хотя бы одно совпадение. Группы ловят со-встречаемость
-    («купи» … «онлайн») с любыми словами между — жёсткие фразы этого не умеют."""
+    («купи» … «онлайн») с любыми словами между — жёсткие фразы этого не умеют.
+
+    exclude_patterns подавляют триггер (напр. явный офлайн «в магазине»), но только
+    если нет ни одного exclude_unless_patterns (явный признак дистанционности —
+    «на сайте», «доставка»), чтобы смешанные «купи на сайте или в магазине» флагались."""
+    excl = rule.get("exclude_patterns", [])
+    if excl and any(e.lower() in low for e in excl):
+        unless = rule.get("exclude_unless_patterns", [])
+        if not any(u.lower() in low for u in unless):
+            return None
     for t in rule.get("trigger_patterns", []):
         if t.lower() in low:
             return t

@@ -225,13 +225,20 @@ function runGeneralRules(text, stemSet, low, isInternet){
       const any = (r.patterns_regex||[]).some(p=>new RegExp(p,"i").test(text));
       if(!any){ matched=true; ev=null; }
     } else if(type === "conditional"){
+      // Исключение: явный офлайн подавляет триггер, если нет признака дистанционности.
+      const excl = r.exclude_patterns||[];
+      const excluded = excl.length && excl.some(e=>low.includes(e.toLowerCase())) &&
+                       !(r.exclude_unless_patterns||[]).some(u=>low.includes(u.toLowerCase()));
       // Триггер: любая фраза trigger_patterns ЛИБО в каждой группе trigger_groups
       // есть совпадение (ловит «купи … онлайн» с любыми словами между).
-      let trig = (r.trigger_patterns||[]).find(t=>low.includes(t.toLowerCase()));
-      if(!trig && (r.trigger_groups||[]).length){
-        let ok=true, last=null;
-        for(const g of r.trigger_groups){ const h=g.find(p=>low.includes(p.toLowerCase())); if(!h){ ok=false; break; } last=h; }
-        if(ok) trig=last;
+      let trig = null;
+      if(!excluded){
+        trig = (r.trigger_patterns||[]).find(t=>low.includes(t.toLowerCase()));
+        if(!trig && (r.trigger_groups||[]).length){
+          let ok=true, last=null;
+          for(const g of r.trigger_groups){ const h=g.find(p=>low.includes(p.toLowerCase())); if(!h){ ok=false; break; } last=h; }
+          if(ok) trig=last;
+        }
       }
       if(trig && !(r.required_patterns||[]).some(x=>low.includes(x.toLowerCase()))){ matched=true; const i=low.indexOf(trig.toLowerCase()); ev=snippet(text,i,trig.length); }
     }
