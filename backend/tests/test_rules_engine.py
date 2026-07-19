@@ -137,6 +137,19 @@ def test_promo_event_ok_with_terms_and_source():
     )
 
 
+def test_promo_event_requires_both_dates_and_source():
+    # Ст. 9 требует ОБА элемента: только сроки или только источник — всё равно риск.
+    assert "promo_event" in _ids("Розыгрыш авто! Сроки 01.06–31.08.2025")  # нет источника
+    assert "promo_event" in _ids("Конкурс! Правила и организатор на сайте")  # нет сроков
+
+
+def test_promo_event_ok_with_date_by_month_name():
+    # Дата словом («1–30 сентября») распознаётся как срок.
+    assert "promo_event" not in _ids(
+        "Конкурс 1–30 сентября 2025. Организатор ООО «Приз», правила: site.ru/rules"
+    )
+
+
 def test_promo_event_not_triggered_by_plain_discount():
     # Скидочная акция — это не ст. 9 (стимулирующее мероприятие).
     assert "promo_event" not in _ids("Скидка -20% на всё до конца недели")

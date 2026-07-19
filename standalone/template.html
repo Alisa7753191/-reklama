@@ -206,6 +206,17 @@ function detectCategories(text, stemSet){
   return found;
 }
 
+function groupHit(patterns, low, text){
+  for(const p of (patterns||[])){
+    if(typeof p === "string" && p.startsWith("re:")){ if(new RegExp(p.slice(3),"i").test(text)) return true; }
+    else if(low.includes(String(p).toLowerCase())) return true;
+  }
+  return false;
+}
+function reqSatisfied(r, low, text){
+  if((r.required_groups||[]).length){ return r.required_groups.every(g=>groupHit(g, low, text)); }
+  return (r.required_patterns||[]).some(x=>low.includes(x.toLowerCase()));
+}
 function runGeneralRules(text, stemSet, low, isInternet){
   const out = [];
   for(const id in KB.rules){ const r = KB.rules[id]; let matched=false, ev=null; const type=r.type;
@@ -240,7 +251,7 @@ function runGeneralRules(text, stemSet, low, isInternet){
           if(ok) trig=last;
         }
       }
-      if(trig && !(r.required_patterns||[]).some(x=>low.includes(x.toLowerCase()))){ matched=true; const i=low.indexOf(trig.toLowerCase()); ev=snippet(text,i,trig.length); }
+      if(trig && !reqSatisfied(r, low, text)){ matched=true; const i=low.indexOf(trig.toLowerCase()); ev=snippet(text,i,trig.length); }
     }
     if(matched) out.push(mk(id, id, r.title, r.description, r.risk_level, r.law_refs, r.liability_refs, r.practice_refs, r.mitigation, ev));
   }

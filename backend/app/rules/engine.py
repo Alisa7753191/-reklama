@@ -67,6 +67,26 @@ def _conditional_trigger(rule: dict, low: str) -> Optional[str]:
     return None
 
 
+def _group_hit(patterns: list, low: str, text: str) -> bool:
+    """Совпадение внутри группы (ИЛИ). Элемент с префиксом 're:' — регулярное выражение."""
+    for p in patterns:
+        if isinstance(p, str) and p.startswith("re:"):
+            if re.search(p[3:], text, re.IGNORECASE):
+                return True
+        elif p.lower() in low:
+            return True
+    return False
+
+
+def _required_satisfied(rule: dict, low: str, text: str) -> bool:
+    """Требования выполнены? Если задан required_groups — нужно совпадение в КАЖДОЙ
+    группе (И между группами). Иначе — достаточно любого из required_patterns."""
+    groups = rule.get("required_groups")
+    if groups:
+        return all(_group_hit(g, low, text) for g in groups)
+    return any(r.lower() in low for r in rule.get("required_patterns", []))
+
+
 def _label(item: dict, fallback_text: str) -> str:
     """Короткая метка требования для заголовка находки (уникальна в рамках
     категории, чтобы разные требования не схлопывались дедупликацией)."""
@@ -221,9 +241,7 @@ class RulesEngine:
                 # Сработать, если есть триггер, но нет ни одного обязательного элемента
                 # (например: онлайн-заказ без реквизитов продавца — ст. 8).
                 trig = _conditional_trigger(rule, low)
-                if trig and not any(
-                    r.lower() in low for r in rule.get("required_patterns", [])
-                ):
+                if trig and not _required_satisfied(rule, low, text):
                     matched = True
                     idx = low.find(trig.lower())
                     evidence = _snippet(text, idx, len(trig)) if idx >= 0 else None
