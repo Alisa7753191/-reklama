@@ -158,6 +158,19 @@ def test_distance_selling_not_triggered_by_online_service_without_purchase():
     assert "distance_selling" not in _ids("Консультация юриста онлайн")
 
 
+def test_distance_selling_any_sale_without_online_word():
+    # Любая продажа товара (без слова «онлайн») тоже триггерит ст. 8.
+    assert "distance_selling" in _ids("Купи кроссовки")
+    assert "distance_selling" in _ids("Новая коллекция уже в продаже")
+    assert "distance_selling" in _ids("Закажи цветы с доставкой")
+
+
+def test_distance_selling_not_triggered_for_financial_service():
+    # Финансовые услуги (вклад/кредит) — не товар, ст. 8 не применяется.
+    assert "distance_selling" not in _ids("Оформи вклад под 16% годовых")
+    assert "distance_selling" not in _ids("Оформи кредит наличными")
+
+
 def test_distance_selling_ok_with_ogrn():
     assert "distance_selling" not in _ids(
         "Купите на сайте. Продавец ООО «Ромашка», г. Москва, ОГРН 1027700000000"
