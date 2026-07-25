@@ -324,12 +324,10 @@ function render(res){
   const n = res.findings.length;
   const dots = lvl => { const on=ORDER[lvl]; return [3,2,1].map(v=>'<span class="light__dot'+(on===v?" light__dot--on":"")+'"></span>').join(""); };
   const sub = n===0 ? "Явных правовых рисков движок не обнаружил. Рекомендуется финальная проверка юристом."
-    : "Выявлено рисков: "+n+" ("+RISK_EMOJI.critical+counts.critical+" "+RISK_EMOJI.high+counts.high+" "+RISK_EMOJI.medium+counts.medium+" "+RISK_EMOJI.low+counts.low+"). Проверьте каждый пункт ниже.";
+    : "Выявлено рисков: "+n+". Проверьте каждый пункт ниже.";
 
   let html = '<button class="ghost" id="exportBtn" style="margin-bottom:12px">🖨 Скачать PDF / печать</button>';
-  html += '<div class="hero hero--'+res.overall+'"><div class="light light--'+res.overall+'">'+dots(res.overall)+'</div>'+
-    '<div><div class="hero__label">Итоговый уровень риска</div><div class="hero__level hero__level--'+res.overall+'">'+LEVEL_RU[res.overall]+'</div><div class="hero__sub">'+esc(sub)+'</div></div></div>';
-  html += '<div class="counts">'+["critical","high","medium","low"].map(k=>'<span class="count"><span class="swatch" style="background:var(--'+k+')"></span>'+LEVEL_RU[k]+': <b>'+counts[k]+'</b></span>').join("")+'</div>';
+  html += '<p style="font-size:15px;line-height:1.55;color:var(--muted);margin:2px 0 18px">'+esc(sub)+'</p>';
   if(res.cats.length) html += '<div class="chips"><span class="eyebrow">Категории:</span>'+res.cats.map(c=>'<span class="chip">'+esc(KB.categories[c].title)+'</span>').join("")+'</div>';
   if(!res.isInternet){ const CH={sms:"СМС / рассылка",tv:"ТВ",radio:"Радио",print:"Печать",outdoor:"Наружная",email:"E-mail"};
     html += '<div class="chan-note">Канал: <b>'+esc(CH[res.channel]||res.channel)+'</b>. Риски маркировки интернет-рекламы (ERID, пометка «реклама») не показаны — ст. 18.1 применяется только к рекламе в сети «Интернет». Для СМС/рассылок действует ст. 18 (предварительное согласие абонента).</div>'; }

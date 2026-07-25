@@ -54,15 +54,9 @@ def _summary(overall: RiskLevel, findings: List[Finding], categories: List[str])
     n = len(findings)
     if n == 0:
         return "Явных правовых рисков не обнаружено. Тем не менее, рекомендуется финальная проверка юристом."
-    counts = {lvl: 0 for lvl in RiskLevel}
-    for f in findings:
-        counts[f.risk_level] += 1
     cat_titles = [kb.categories.get(c, {}).get("title", c) for c in categories]
     parts = [
-        f"Итоговый уровень риска: {_LEVEL_RU[overall].upper()}.",
-        f"Выявлено рисков: {n}"
-        + f" (критических: {counts[RiskLevel.critical]}, высоких: {counts[RiskLevel.high]},"
-        + f" средних: {counts[RiskLevel.medium]}, низких: {counts[RiskLevel.low]}).",
+        f"Выявлено рисков: {n}.",
     ]
     if cat_titles:
         parts.append("Категории с особым режимом: " + ", ".join(cat_titles) + ".")

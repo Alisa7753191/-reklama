@@ -1,5 +1,5 @@
 import type { Report } from '../types'
-import { CHANNEL_LABEL, RISK_EMOJI, RISK_LABEL } from '../labels'
+import { CHANNEL_LABEL } from '../labels'
 import { FindingCard } from './FindingCard'
 
 export function ReportView({ report }: { report: Report }) {
@@ -14,14 +14,6 @@ export function ReportView({ report }: { report: Report }) {
         <button className="btn btn--ghost" onClick={() => window.print()}>
           🖨 Скачать PDF / печать
         </button>
-      </div>
-
-      <div className={`report__hero report__hero--${r.overall_risk}`}>
-        <div className="report__light">{RISK_EMOJI[r.overall_risk]}</div>
-        <div>
-          <div className="report__hero-label">Итоговый уровень риска</div>
-          <div className="report__hero-level">{RISK_LABEL[r.overall_risk]}</div>
-        </div>
       </div>
 
       <p className="report__summary">{r.summary}</p>
