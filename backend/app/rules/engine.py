@@ -225,6 +225,22 @@ class RulesEngine:
                         evidence = _snippet(text, m.start(), len(m.group(0)))
                         break
 
+            elif rtype == "morph_comparative":
+                # Сравнительная степень (активнее, сильнее, лучше…) — по морфологии;
+                # затем запасные структурные шаблоны (глаголы превосходства и т. п.).
+                word = morphology.find_comparative(text)
+                if word:
+                    matched = True
+                    idx = low.find(word)
+                    evidence = _snippet(text, idx, len(word)) if idx >= 0 else None
+                else:
+                    for pat in rule.get("patterns_regex", []):
+                        m = re.search(pat, text, re.IGNORECASE)
+                        if m:
+                            matched = True
+                            evidence = _snippet(text, m.start(), len(m.group(0)))
+                            break
+
             elif rtype == "absent_all":
                 # Проверки маркировки актуальны только для интернет-рекламы.
                 if not is_internet_ad:

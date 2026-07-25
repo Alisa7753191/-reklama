@@ -217,6 +217,23 @@ function reqSatisfied(r, low, text){
   if((r.required_groups||[]).length){ return r.required_groups.every(g=>groupHit(g, low, text)); }
   return (r.required_patterns||[]).some(x=>low.includes(x.toLowerCase()));
 }
+// Определение сравнительной степени без морфологии (в браузере нет pymorphy):
+// нерегулярные формы + эвристика по окончанию «-ее», за вычетом общих слов и
+// существительных на «-ее». Логика зеркалит backend/app/rules/morphology.py.
+const _CMP_STOP = new Set(["больше","меньше","более","менее","раньше","позже","дольше","ближе","дальше","выше","ниже","старше","младше"]);
+const _CMP_IRREG = new Set(["лучше","хуже","дешевле","дороже","ярче","легче","проще","крепче","громче","тише","чаще","реже","шире","короче","толще","тоньше","мягче","слаще","чище","гуще","глубже","жёстче","жестче"]);
+const _CMP_EE_EXC = new Set(["музее","лицее","юбилее","мавзолее","галерее","аллее","лотерее","батарее","эпопее","оранжерее","ассамблее","орхидее","панацее","идее","траншее","феерее"]);
+function isComparativeJS(w){
+  if(_CMP_STOP.has(w)) return false;
+  if(_CMP_IRREG.has(w)) return true;
+  return w.length>=6 && w.endsWith("ее") && !_CMP_EE_EXC.has(w);
+}
+function findComparativeJS(low){
+  for(const tok of (low.match(/[а-яё]+/g) || [])){
+    if(tok.length>=4 && isComparativeJS(tok)) return tok;
+  }
+  return null;
+}
 function runGeneralRules(text, stemSet, low, isInternet){
   const out = [];
   for(const id in KB.rules){ const r = KB.rules[id]; let matched=false, ev=null; const type=r.type;
@@ -230,6 +247,10 @@ function runGeneralRules(text, stemSet, low, isInternet){
       for(const p of (r.terms||[])){ const i=low.indexOf(p.toLowerCase()); if(i>=0){ matched=true; ev=snippet(text,i,p.length); break; } }
     } else if(type === "regex_any"){
       for(const p of (r.patterns_regex||[])){ const m=text.match(new RegExp(p,"i")); if(m){ matched=true; ev=snippet(text,m.index,m[0].length); break; } }
+    } else if(type === "morph_comparative"){
+      const w = findComparativeJS(low);
+      if(w){ const i=low.indexOf(w); matched=true; ev=snippet(text,i,w.length); }
+      else { for(const p of (r.patterns_regex||[])){ const m=text.match(new RegExp(p,"i")); if(m){ matched=true; ev=snippet(text,m.index,m[0].length); break; } } }
     } else if(type === "absent_all"){
       // Маркировка ERID/«реклама» (ст. 18.1) — только для интернет-рекламы.
       if(!isInternet){ continue; }
