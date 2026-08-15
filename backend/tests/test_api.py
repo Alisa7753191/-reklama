@@ -49,11 +49,13 @@ def test_analyze_url_missing_400():
     assert resp.status_code == 400
 
 
-def test_analyze_invalid_url_degrades_gracefully():
-    resp = client.post("/api/analyze", json={"input_type": "url", "url": "not-a-url"})
-    assert resp.status_code == 200
-    body = resp.json()
-    assert any("Некорректный URL" in w for w in body["meta"]["warnings"])
+def test_analyze_invalid_url_returns_error_instead_of_clean_report():
+    resp = client.post(
+        "/api/analyze",
+        json={"input_type": "url", "url": "http://127.0.0.1/internal"},
+    )
+    assert resp.status_code == 422
+    assert "Локальные" in resp.json()["detail"]
 
 
 def test_analyze_image_rejects_bad_type():
@@ -62,6 +64,37 @@ def test_analyze_image_rejects_bad_type():
         files={"file": ("test.txt", b"hello", "text/plain")},
     )
     assert resp.status_code == 400
+
+
+def test_analyze_image_rejects_oversized_file(monkeypatch):
+    from app.api import routes
+
+    monkeypatch.setattr(routes.settings, "max_image_bytes", 4)
+    resp = client.post(
+        "/api/analyze/image",
+        files={"file": ("large.png", b"12345", "image/png")},
+    )
+    assert resp.status_code == 413
+
+
+def test_analyze_image_ocr_failure_is_not_reported_as_low_risk(monkeypatch):
+    from app.api import routes
+    from app.ingest.image import ImageResult
+
+    monkeypatch.setattr(
+        routes,
+        "ingest_image",
+        lambda *_args, **_kwargs: ImageResult(
+            text="",
+            warnings=["Не удалось распознать текст на изображении."],
+        ),
+    )
+    resp = client.post(
+        "/api/analyze/image",
+        files={"file": ("creative.png", b"image", "image/png")},
+    )
+    assert resp.status_code == 422
+    assert "Не удалось распознать" in resp.json()["detail"]
 
 
 def test_image_split_text_visual_keeps_marking_out_of_engine():

@@ -691,9 +691,14 @@ a:focus-visible {
   font-weight: 300;
 }
 
-.filedrop:hover:not(:disabled) {
+.filedrop:hover:not([aria-disabled="true"]) {
   border-color: var(--primary);
   background: #09110c;
+}
+
+.filedrop[aria-disabled="true"] {
+  opacity: 0.48;
+  cursor: not-allowed;
 }
 
 .filedrop b {
@@ -708,6 +713,20 @@ a:focus-visible {
 
 .hint {
   color: var(--muted-2);
+  font-size: 11px;
+}
+
+.field-meta {
+  margin-top: 7px;
+  color: var(--muted-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  text-align: right;
+}
+
+.field-error {
+  margin-top: 9px;
+  color: #ff8d98;
   font-size: 11px;
 }
 

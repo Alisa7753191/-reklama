@@ -32,6 +32,9 @@ def analyze(req: AnalyzeRequest) -> Report:
         if not req.url:
             raise HTTPException(status_code=400, detail="Не указан URL для анализа.")
         result = ingest_url(req.url)
+        if not result.text.strip():
+            detail = result.warnings[0] if result.warnings else "Не удалось получить текст страницы."
+            raise HTTPException(status_code=422, detail=detail)
         return _analyzer.analyze(
             text=result.text,
             input_type=InputType.url,
@@ -69,11 +72,20 @@ async def analyze_image(
             detail=f"Неподдерживаемый тип изображения: {media_type}. "
             f"Допустимо: {', '.join(sorted(_ALLOWED_IMAGE_TYPES))}.",
         )
-    image_bytes = await file.read()
+    image_bytes = await file.read(settings.max_image_bytes + 1)
     if not image_bytes:
         raise HTTPException(status_code=400, detail="Пустой файл изображения.")
+    if len(image_bytes) > settings.max_image_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Изображение слишком большое. Максимальный размер — "
+            f"{settings.max_image_bytes // (1024 * 1024)} МБ.",
+        )
 
     result = ingest_image(image_bytes, media_type=media_type)
+    if not result.text.strip():
+        detail = result.warnings[-1] if result.warnings else "Не удалось распознать текст."
+        raise HTTPException(status_code=422, detail=detail)
     warnings = list(result.warnings)
     # Визуальные наблюдения показываем отдельной заметкой, но НЕ отдаём в движок правил
     # (чтобы слова вроде «erid» из наблюдений не глушили проверку маркировки).

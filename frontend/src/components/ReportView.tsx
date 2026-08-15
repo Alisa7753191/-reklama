@@ -1,5 +1,5 @@
 import type { Report } from '../types'
-import { CHANNEL_LABEL } from '../labels'
+import { CATEGORY_LABEL, CHANNEL_LABEL } from '../labels'
 import { FindingCard } from './FindingCard'
 
 export function ReportView({ report }: { report: Report }) {
@@ -33,7 +33,7 @@ export function ReportView({ report }: { report: Report }) {
         <div className="chips">
           <span className="chips__label">Категории:</span>
           {r.detected_categories.map((c) => (
-            <span key={c} className="chip">{c}</span>
+            <span key={c} className="chip">{CATEGORY_LABEL[c] ?? c}</span>
           ))}
         </div>
       )}

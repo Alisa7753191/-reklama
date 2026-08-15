@@ -28,6 +28,19 @@ export default function App() {
       .catch(() => setLlmEnabled(null))
   }, [])
 
+  useEffect(() => {
+    if (!report) return
+    const frame = window.requestAnimationFrame(() => {
+      document.querySelector('.report')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [report])
+
+  function resetResult() {
+    setReport(null)
+    setError(null)
+  }
+
   async function run(fn: () => Promise<Report>) {
     setLoading(true)
     setError(null)
@@ -42,7 +55,7 @@ export default function App() {
   }
 
   function openStep(nextStep: WizardStep) {
-    setError(null)
+    if (nextStep < 3) resetResult()
     setStep(nextStep)
   }
 
@@ -119,8 +132,12 @@ export default function App() {
                     autoFocus
                     className="wizard-input"
                     rows={5}
+                    maxLength={2000}
                     value={company}
-                    onChange={(e) => setCompany(e.target.value)}
+                    onChange={(e) => {
+                      setCompany(e.target.value)
+                      resetResult()
+                    }}
                     placeholder="Например: банк для малого бизнеса, сеть медицинских клиник, онлайн-магазин одежды…"
                   />
                   <div className="question-card__actions question-card__actions--end">
@@ -145,8 +162,12 @@ export default function App() {
                     autoFocus
                     className="wizard-input"
                     rows={5}
+                    maxLength={2000}
                     value={product}
-                    onChange={(e) => setProduct(e.target.value)}
+                    onChange={(e) => {
+                      setProduct(e.target.value)
+                      resetResult()
+                    }}
                     placeholder="Например: вклад со ставкой до 18% годовых для новых клиентов…"
                   />
                   <div className="question-card__actions">
@@ -192,6 +213,7 @@ export default function App() {
 
             <InputPanel
               loading={loading}
+              onDraftChange={resetResult}
               onAnalyzeText={(text, channel) => run(() => analyzeText(text, channel, context))}
               onAnalyzeUrl={(url, channel) => run(() => analyzeUrl(url, channel, context))}
               onAnalyzeImage={(file, channel) => run(() => analyzeImage(file, channel, context))}
