@@ -302,21 +302,56 @@ function TeamPage({ data, onChange }: { data: WorkspaceData; onChange: (data: Wo
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<TeamMember['role']>('Юрист')
+  const [memberToDelete, setMemberToDelete] = useState<TeamMember | null>(null)
+  const [formError, setFormError] = useState('')
+  const [notice, setNotice] = useState('')
 
   function addMember(event: React.FormEvent) {
     event.preventDefault()
     if (!name.trim() || !email.trim()) return
+    if (data.team.some((member) => member.email.toLowerCase() === email.trim().toLowerCase())) {
+      setFormError('Участник с таким e-mail уже добавлен')
+      return
+    }
     const member: TeamMember = { id: createId('team'), name: name.trim(), email: email.trim(), role, active: true }
     onChange({ ...data, team: [...data.team, member] })
-    setName(''); setEmail('')
+    setName(''); setEmail(''); setRole('Юрист'); setFormError(''); setNotice(`${member.name} добавлен в команду`)
+  }
+
+  function deleteMember() {
+    if (!memberToDelete || memberToDelete.id === 'team-1') return
+    onChange({ ...data, team: data.team.filter((member) => member.id !== memberToDelete.id) })
+    setNotice(`${memberToDelete.name} удалён из команды`)
+    setMemberToDelete(null)
   }
 
   return (
     <>
       <PageHeader eyebrow="РОЛИ И ДОСТУП" title="Команда" description="Юристы, рецензенты и наблюдатели рабочего пространства." />
+      {notice && <div className="team-notice" role="status"><span>✓</span>{notice}<button type="button" aria-label="Закрыть уведомление" onClick={() => setNotice('')}>×</button></div>}
+      {memberToDelete && <section className="team-confirm" role="alertdialog" aria-labelledby="remove-member-title">
+        <div><span>УДАЛЕНИЕ УЧАСТНИКА</span><h2 id="remove-member-title">Удалить {memberToDelete.name}?</h2><p>Участник потеряет доступ к рабочему пространству. История его решений сохранится.</p></div>
+        <div><button type="button" className="btn btn--ghost" onClick={() => setMemberToDelete(null)}>Отмена</button><button type="button" className="btn btn--danger" onClick={deleteMember}>Удалить</button></div>
+      </section>}
       <div className="team-layout">
-        <div className="team-list">{data.team.map((member) => <article key={member.id}><div className="avatar">{member.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}</div><div><h2>{member.name}</h2><p>{member.email}</p></div><span className="role-chip">{member.role}</span><span className={member.active ? 'member-active' : 'member-off'}>{member.active ? 'Активен' : 'Отключён'}</span></article>)}</div>
-        <form className="workspace-card invite-card" onSubmit={addMember}><p className="eyebrow">ПРИГЛАСИТЬ</p><h2>Новый участник</h2><label>Имя<input className="input" value={name} onChange={(event) => setName(event.target.value)} required /></label><label>E-mail<input className="input" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></label><label>Роль<select value={role} onChange={(event) => setRole(event.target.value as TeamMember['role'])}><option>Администратор</option><option>Юрист</option><option>Младший юрист</option><option>Наблюдатель</option></select></label><button className="btn btn--primary">Добавить в команду</button></form>
+        <div className="team-list">{data.team.map((member) => {
+          const isPrimaryAdministrator = member.id === 'team-1'
+          return <article key={member.id}>
+            <div className="avatar">{member.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}</div>
+            <div><h2>{member.name}</h2><p>{member.email}</p></div>
+            <span className="role-chip">{member.role}</span>
+            <span className={member.active ? 'member-active' : 'member-off'}>{member.active ? 'Активен' : 'Отключён'}</span>
+            <button type="button" className="member-delete" disabled={isPrimaryAdministrator} title={isPrimaryAdministrator ? 'Основного администратора удалить нельзя' : `Удалить ${member.name}`} onClick={() => setMemberToDelete(member)}>{isPrimaryAdministrator ? 'Основной' : 'Удалить'}</button>
+          </article>
+        })}</div>
+        <form className="workspace-card invite-card" onSubmit={addMember}>
+          <p className="eyebrow">ДОБАВИТЬ</p><h2>Новый участник</h2>
+          <label>Имя<input className="input" value={name} onChange={(event) => { setName(event.target.value); setFormError('') }} required /></label>
+          <label>E-mail<input className="input" type="email" value={email} onChange={(event) => { setEmail(event.target.value); setFormError('') }} required /></label>
+          <label>Роль<select value={role} onChange={(event) => setRole(event.target.value as TeamMember['role'])}><option>Администратор</option><option>Юрист</option><option>Младший юрист</option><option>Наблюдатель</option></select></label>
+          {formError && <p className="form-error" role="alert">{formError}</p>}
+          <button className="btn btn--primary">Добавить в команду</button>
+        </form>
       </div>
     </>
   )

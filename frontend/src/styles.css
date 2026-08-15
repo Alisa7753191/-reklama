@@ -1635,7 +1635,7 @@ a:focus-visible {
 
 .team-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 15px; }
 .team-list { display: grid; gap: 8px; }
-.team-list article { min-height: 72px; display: grid; grid-template-columns: 40px minmax(0, 1fr) 130px 70px; align-items: center; gap: 13px; padding: 13px 16px; border: 1px solid var(--border); border-radius: 13px; background: var(--surface); }
+.team-list article { min-height: 72px; display: grid; grid-template-columns: 40px minmax(0, 1fr) 130px 70px 70px; align-items: center; gap: 13px; padding: 13px 16px; border: 1px solid var(--border); border-radius: 13px; background: var(--surface); }
 .avatar { width: 40px; height: 40px; }
 .team-list h2 { font-size: 12px; }
 .team-list p { margin: 4px 0 0; color: var(--muted); font-size: 9px; }
@@ -1647,6 +1647,20 @@ a:focus-visible {
 .invite-card { align-self: start; display: grid; gap: 13px; }
 .invite-card h2 { margin-bottom: 6px; }
 .invite-card select { width: 100%; }
+.member-delete { justify-self: end; padding: 7px 0; border: 0; background: transparent; color: #ff7f8c; font: inherit; font-size: 9px; font-weight: 800; cursor: pointer; }
+.member-delete:hover { color: #ffb1b9; }
+.member-delete:disabled { color: var(--muted); cursor: not-allowed; opacity: .65; }
+.team-notice { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; padding: 11px 14px; border: 1px solid rgba(57,242,138,.28); border-radius: 12px; background: rgba(57,242,138,.08); color: var(--text); font-size: 11px; }
+.team-notice > span { color: var(--primary); font-weight: 900; }
+.team-notice button { margin-left: auto; border: 0; background: transparent; color: var(--muted); font-size: 17px; cursor: pointer; }
+.team-confirm { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 14px; padding: 17px 19px; border: 1px solid rgba(255,95,112,.35); border-radius: 14px; background: linear-gradient(120deg, rgba(255,95,112,.10), rgba(8,15,11,.96)); }
+.team-confirm span { color: #ff7f8c; font-size: 8px; font-weight: 900; letter-spacing: .14em; }
+.team-confirm h2 { margin: 6px 0 4px; font-size: 15px; }
+.team-confirm p { margin: 0; color: var(--muted); font-size: 10px; }
+.team-confirm > div:last-child { display: flex; gap: 8px; flex: 0 0 auto; }
+.btn--danger { border-color: rgba(255,95,112,.5); background: #ff5f70; color: #190407; }
+.btn--danger:hover { background: #ff7f8c; }
+.form-error { margin: -5px 0 0; color: #ff8f9a; font-size: 9px; }
 
 .analytics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .chart-card h2 { margin-bottom: 23px; }
@@ -1829,7 +1843,9 @@ a:focus-visible {
   .team-list article { grid-template-columns: 40px minmax(0, 1fr); }
   .team-list .role-chip,
   .team-list .member-active,
-  .team-list .member-off { grid-column: 2; }
+  .team-list .member-off,
+  .team-list .member-delete { grid-column: 2; justify-self: start; }
+  .team-confirm { align-items: flex-start; flex-direction: column; }
   .donut-summary { grid-template-columns: 1fr; }
   .settings-actions { align-items: stretch; flex-direction: column; }
   .settings-actions .btn { width: 100%; }
