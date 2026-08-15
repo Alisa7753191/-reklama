@@ -174,9 +174,9 @@ export const DEFAULT_WORKSPACE: WorkspaceData = {
       report: null,
       versions: [],
       comments: [
-        { id: 'comment-demo-1', author: 'Анна Крылова', text: 'Проверить предупреждение о противопоказаниях и реквизиты лицензии.', createdAt: iso(1) },
+        { id: 'comment-demo-1', author: 'Алиса Новикова', text: 'Проверить предупреждение о противопоказаниях и реквизиты лицензии.', createdAt: iso(1) },
       ],
-      reviewer: 'Анна Крылова',
+      reviewer: 'Алиса Новикова',
       createdAt: iso(3),
       updatedAt: iso(1),
     },
@@ -232,7 +232,7 @@ export const DEFAULT_WORKSPACE: WorkspaceData = {
       report: null,
       versions: [],
       comments: [],
-      reviewer: 'Анна Крылова',
+      reviewer: 'Алиса Новикова',
       createdAt: iso(8),
       updatedAt: iso(6),
     },
@@ -251,7 +251,7 @@ export const DEFAULT_WORKSPACE: WorkspaceData = {
     { id: 'kb-fas', title: 'Подходы ФАС к превосходной степени', source: 'Практика ФАС России', article: 'Подборка решений', category: 'Практика', updatedAt: '2026-06-18', enabled: true },
   ],
   team: [
-    { id: 'team-1', name: 'Анна Крылова', email: 'a.krylova@lex.demo', role: 'Администратор', active: true },
+    { id: 'team-1', name: 'Алиса Новикова', email: 'a.novikova@lex.demo', role: 'Администратор', active: true },
     { id: 'team-2', name: 'Михаил Орлов', email: 'm.orlov@lex.demo', role: 'Юрист', active: true },
     { id: 'team-3', name: 'Елена Волкова', email: 'e.volkova@lex.demo', role: 'Младший юрист', active: true },
   ],
@@ -259,7 +259,7 @@ export const DEFAULT_WORKSPACE: WorkspaceData = {
     firmName: 'ПравоРеклама Legal',
     legalName: 'ООО «Юридические решения»',
     inn: '7700000000',
-    signatory: 'Анна Крылова, руководитель практики',
+    signatory: 'Алиса Новикова, руководитель практики',
     reportTitle: 'Заключение о соответствии рекламного материала',
     retentionDays: 365,
     dataRegion: 'Российская Федерация',
@@ -276,10 +276,31 @@ export function loadWorkspace(): WorkspaceData {
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) return DEFAULT_WORKSPACE
     const stored = JSON.parse(raw) as Partial<WorkspaceData>
-    return {
+    const workspace = {
       ...DEFAULT_WORKSPACE,
       ...stored,
       settings: { ...DEFAULT_WORKSPACE.settings, ...stored.settings },
+    }
+    const previousAdmin = 'Анна Крылова'
+    const currentAdmin = 'Алиса Новикова'
+    return {
+      ...workspace,
+      team: workspace.team.map((member) => member.name === previousAdmin
+        ? { ...member, name: currentAdmin, email: member.email === 'a.krylova@lex.demo' ? 'a.novikova@lex.demo' : member.email }
+        : member),
+      reviews: workspace.reviews.map((review) => ({
+        ...review,
+        reviewer: review.reviewer === previousAdmin ? currentAdmin : review.reviewer,
+        comments: review.comments.map((comment) => comment.author === previousAdmin
+          ? { ...comment, author: currentAdmin }
+          : comment),
+      })),
+      settings: {
+        ...workspace.settings,
+        signatory: workspace.settings.signatory === `${previousAdmin}, руководитель практики`
+          ? `${currentAdmin}, руководитель практики`
+          : workspace.settings.signatory,
+      },
     }
   } catch {
     return DEFAULT_WORKSPACE
