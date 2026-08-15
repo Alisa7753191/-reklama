@@ -12,7 +12,9 @@ class LLMProvider(abc.ABC):
     available: bool = False
 
     @abc.abstractmethod
-    def analyze(self, text: str, categories: List[str]) -> List[Finding]:
+    def analyze(
+        self, text: str, categories: List[str], context: str = ""
+    ) -> List[Finding]:
         """Вернуть список находок (рисков) по тексту рекламы.
 
         Реализация не должна бросать исключения наружу — при ошибке

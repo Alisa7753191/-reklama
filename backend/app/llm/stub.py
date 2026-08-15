@@ -15,5 +15,7 @@ class StubProvider(LLMProvider):
     name = "stub"
     available = False
 
-    def analyze(self, text: str, categories: List[str]) -> List[Finding]:
+    def analyze(
+        self, text: str, categories: List[str], context: str = ""
+    ) -> List[Finding]:
         return []

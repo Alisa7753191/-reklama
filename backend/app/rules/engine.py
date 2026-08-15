@@ -402,10 +402,12 @@ class RulesEngine:
 
     # --- Точка входа --------------------------------------------------------
     def analyze(
-        self, text: str, is_internet_ad: bool = True
+        self, text: str, is_internet_ad: bool = True, category_context: str = ""
     ) -> Tuple[List[Finding], List[str]]:
+        detection_text = f"{text}\n{category_context}" if category_context.strip() else text
+        detection_lemmas = morphology.lemmatize_text(detection_text)
+        categories = self.detect_categories(detection_text, detection_lemmas)
         lemmas = morphology.lemmatize_text(text)
-        categories = self.detect_categories(text, lemmas)
         findings = self._run_general_rules(text, lemmas, is_internet_ad)
         findings += self._run_category_rules(text, categories)
         return findings, categories

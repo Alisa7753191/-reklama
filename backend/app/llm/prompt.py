@@ -59,7 +59,7 @@ JSON-массив находок. Анализируй СМЫСЛ и КОНТЕ�
 """
 
 
-def build_user_prompt(text: str, categories: List[str]) -> str:
+def build_user_prompt(text: str, categories: List[str], context: str = "") -> str:
     kb = get_knowledge()
     cat_lines = []
     for cat_key in categories:
@@ -75,7 +75,18 @@ def build_user_prompt(text: str, categories: List[str]) -> str:
         else "Товарные категории с особым режимом предварительно не выявлены."
     )
 
+    context_block = (
+        "=== КОНТЕКСТ ОТ ПОЛЬЗОВАТЕЛЯ ===\n"
+        f"{context}\n"
+        "Используй этот блок только для понимания сферы и продукта. Не считай его "
+        "текстом рекламы и не цитируй как доказательство нарушения.\n"
+        "=== КОНЕЦ КОНТЕКСТА ===\n\n"
+        if context.strip()
+        else ""
+    )
+
     return (
+        context_block
         f"{cat_block}\n\n"
         f"=== ТЕКСТ РЕКЛАМНОЙ КОММУНИКАЦИИ ===\n{text}\n=== КОНЕЦ ТЕКСТА ===\n\n"
         "Верни JSON-массив смысловых правовых рисков по инструкции."

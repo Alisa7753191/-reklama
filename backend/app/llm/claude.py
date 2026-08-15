@@ -40,13 +40,18 @@ class ClaudeProvider(LLMProvider):
         self._client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
         self._model = settings.anthropic_model
 
-    def analyze(self, text: str, categories: List[str]) -> List[Finding]:
+    def analyze(
+        self, text: str, categories: List[str], context: str = ""
+    ) -> List[Finding]:
         try:
             resp = self._client.messages.create(
                 model=self._model,
                 max_tokens=settings.llm_max_tokens,
                 system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": build_user_prompt(text, categories)}],
+                messages=[{
+                    "role": "user",
+                    "content": build_user_prompt(text, categories, context=context),
+                }],
             )
             raw = "".join(
                 block.text for block in resp.content if getattr(block, "type", "") == "text"

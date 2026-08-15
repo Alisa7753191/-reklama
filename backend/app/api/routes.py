@@ -37,19 +37,29 @@ def analyze(req: AnalyzeRequest) -> Report:
             input_type=InputType.url,
             extra_warnings=result.warnings,
             channel=req.channel,
+            company_description=req.company_description or "",
+            product_description=req.product_description or "",
         )
 
     # По умолчанию — текстовый анализ.
     text = ingest_text(req.text or "")
     if not text:
         raise HTTPException(status_code=400, detail="Не передан текст для анализа.")
-    return _analyzer.analyze(text=text, input_type=InputType.text, channel=req.channel)
+    return _analyzer.analyze(
+        text=text,
+        input_type=InputType.text,
+        channel=req.channel,
+        company_description=req.company_description or "",
+        product_description=req.product_description or "",
+    )
 
 
 @router.post("/analyze/image", response_model=Report)
 async def analyze_image(
     file: UploadFile = File(...),
     channel: Channel = Form(Channel.internet),
+    company_description: str = Form(""),
+    product_description: str = Form(""),
 ) -> Report:
     """Анализ рекламного креатива (изображения) через OCR/vision."""
     media_type = file.content_type or "image/png"
@@ -74,4 +84,6 @@ async def analyze_image(
         input_type=InputType.image,
         extra_warnings=warnings,
         channel=channel,
+        company_description=company_description,
+        product_description=product_description,
     )

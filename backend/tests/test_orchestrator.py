@@ -84,3 +84,16 @@ def test_risk_warning_phrase_not_duplicated():
         if phrase in (f.title + f.description + " ".join(f.mitigation)).lower()
     ]
     assert len(hits) == 1
+
+
+def test_product_context_informs_category_detection_but_not_evidence_text():
+    report = analyzer.analyze(
+        text="До 18% годовых для новых клиентов",
+        input_type=InputType.text,
+        company_description="Банк для частных клиентов",
+        product_description="Банковский вклад",
+    )
+    assert "deposit" in report.detected_categories
+    assert report.extracted_text == "До 18% годовых для новых клиентов"
+    assert report.meta.company_description == "Банк для частных клиентов"
+    assert report.meta.product_description == "Банковский вклад"

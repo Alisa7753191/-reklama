@@ -1,6 +1,11 @@
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
 export type InputType = 'text' | 'url' | 'image'
 
+export interface AnalysisContext {
+  company_description: string
+  product_description: string
+}
+
 export interface LegalBasis {
   law: string
   article: string
@@ -49,6 +54,8 @@ export interface ReportMeta {
   rules_findings: number
   llm_findings: number
   warnings: string[]
+  company_description?: string | null
+  product_description?: string | null
 }
 
 export interface Report {

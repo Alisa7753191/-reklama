@@ -73,6 +73,8 @@ class Analyzer:
         input_type: InputType,
         extra_warnings: List[str] | None = None,
         channel: Channel = Channel.internet,
+        company_description: str = "",
+        product_description: str = "",
     ) -> Report:
         warnings = list(extra_warnings or [])
         text = text or ""
@@ -104,13 +106,24 @@ class Analyzer:
             )
 
         # 1) Детерминированные правила.
-        rule_findings, categories = self.engine.analyze(text, is_internet_ad=is_internet_ad)
+        context_parts = []
+        if company_description.strip():
+            context_parts.append(f"Сфера деятельности компании: {company_description.strip()}")
+        if product_description.strip():
+            context_parts.append(f"Рекламируемый продукт: {product_description.strip()}")
+        context = "\n".join(context_parts)
+
+        rule_findings, categories = self.engine.analyze(
+            text,
+            is_internet_ad=is_internet_ad,
+            category_context=product_description,
+        )
 
         # 2) Смысловой LLM-анализ.
         provider = get_provider()
         llm_findings: List[Finding] = []
         if provider.available:
-            llm_findings = provider.analyze(text, categories)
+            llm_findings = provider.analyze(text, categories, context=context)
         else:
             warnings.append(
                 "LLM-анализ отключён (нет ANTHROPIC_API_KEY): работает только движок правил. "
@@ -138,5 +151,7 @@ class Analyzer:
                 rules_findings=len(rule_findings),
                 llm_findings=len(llm_findings),
                 warnings=warnings,
+                company_description=company_description or None,
+                product_description=product_description or None,
             ),
         )

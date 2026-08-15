@@ -18,6 +18,17 @@ export function ReportView({ report }: { report: Report }) {
 
       <p className="report__summary">{r.summary}</p>
 
+      {(r.meta.company_description || r.meta.product_description) && (
+        <div className="report-context">
+          {r.meta.company_description && (
+            <div><span>Компания</span><p>{r.meta.company_description}</p></div>
+          )}
+          {r.meta.product_description && (
+            <div><span>Продукт</span><p>{r.meta.product_description}</p></div>
+          )}
+        </div>
+      )}
+
       {r.detected_categories.length > 0 && (
         <div className="chips">
           <span className="chips__label">Категории:</span>

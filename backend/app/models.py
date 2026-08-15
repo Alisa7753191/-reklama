@@ -87,6 +87,8 @@ class AnalyzeRequest(BaseModel):
     text: Optional[str] = None
     url: Optional[str] = None
     channel: Channel = Channel.internet
+    company_description: Optional[str] = Field(default=None, max_length=2000)
+    product_description: Optional[str] = Field(default=None, max_length=2000)
     # Для изображений используется multipart-загрузка в отдельном эндпоинте.
 
 
@@ -98,6 +100,8 @@ class ReportMeta(BaseModel):
     rules_findings: int = 0
     llm_findings: int = 0
     warnings: List[str] = Field(default_factory=list)
+    company_description: Optional[str] = None
+    product_description: Optional[str] = None
 
 
 class Report(BaseModel):

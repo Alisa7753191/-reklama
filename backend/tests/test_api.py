@@ -22,6 +22,23 @@ def test_analyze_text_ok():
     assert any(f["id"] == "superlative" for f in body["findings"])
 
 
+def test_analyze_text_accepts_onboarding_context():
+    resp = client.post(
+        "/api/analyze",
+        json={
+            "input_type": "text",
+            "text": "До 18% годовых",
+            "company_description": "Банк для частных клиентов",
+            "product_description": "Банковский вклад",
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "deposit" in body["detected_categories"]
+    assert body["meta"]["company_description"] == "Банк для частных клиентов"
+    assert body["meta"]["product_description"] == "Банковский вклад"
+
+
 def test_analyze_empty_text_400():
     resp = client.post("/api/analyze", json={"input_type": "text", "text": "  "})
     assert resp.status_code == 400

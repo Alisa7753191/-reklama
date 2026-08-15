@@ -1,4 +1,4 @@
-import type { Report } from './types'
+import type { AnalysisContext, Report } from './types'
 
 export type Channel = 'internet' | 'sms' | 'email' | 'tv' | 'radio' | 'print' | 'outdoor'
 
@@ -18,28 +18,42 @@ async function handle(resp: Response): Promise<Report> {
   return resp.json()
 }
 
-export async function analyzeText(text: string, channel: Channel = 'internet'): Promise<Report> {
+export async function analyzeText(
+  text: string,
+  channel: Channel = 'internet',
+  context?: AnalysisContext,
+): Promise<Report> {
   const resp = await fetch(`${BASE}/analyze`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ input_type: 'text', text, channel }),
+    body: JSON.stringify({ input_type: 'text', text, channel, ...context }),
   })
   return handle(resp)
 }
 
-export async function analyzeUrl(url: string, channel: Channel = 'internet'): Promise<Report> {
+export async function analyzeUrl(
+  url: string,
+  channel: Channel = 'internet',
+  context?: AnalysisContext,
+): Promise<Report> {
   const resp = await fetch(`${BASE}/analyze`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ input_type: 'url', url, channel }),
+    body: JSON.stringify({ input_type: 'url', url, channel, ...context }),
   })
   return handle(resp)
 }
 
-export async function analyzeImage(file: File, channel: Channel = 'internet'): Promise<Report> {
+export async function analyzeImage(
+  file: File,
+  channel: Channel = 'internet',
+  context?: AnalysisContext,
+): Promise<Report> {
   const form = new FormData()
   form.append('file', file)
   form.append('channel', channel)
+  if (context?.company_description) form.append('company_description', context.company_description)
+  if (context?.product_description) form.append('product_description', context.product_description)
   const resp = await fetch(`${BASE}/analyze/image`, {
     method: 'POST',
     body: form,

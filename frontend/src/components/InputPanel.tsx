@@ -38,15 +38,23 @@ export function InputPanel({ loading, onAnalyzeText, onAnalyzeUrl, onAnalyzeImag
 
   return (
     <div className="panel">
+      <div className="panel__header">
+        <div>
+          <span className="panel__eyebrow">ФОРМАТ МАТЕРИАЛА</span>
+          <h2>Что будем проверять?</h2>
+        </div>
+        <span className="panel__status"><i /> Готово к анализу</span>
+      </div>
+
       <div className="tabs">
-        {TABS.map((t) => (
+        {TABS.map((t, index) => (
           <button
             key={t.key}
             className={`tab ${tab === t.key ? 'tab--active' : ''}`}
             onClick={() => setTab(t.key)}
             disabled={loading}
           >
-            {t.label}
+            <span>0{index + 1}</span>{t.label}
           </button>
         ))}
       </div>
@@ -120,7 +128,7 @@ export function InputPanel({ loading, onAnalyzeText, onAnalyzeUrl, onAnalyzeImag
 
       {tab === 'image' && (
         <div className="tab-body">
-          <div className="filedrop" onClick={() => fileRef.current?.click()}>
+          <button className="filedrop" type="button" onClick={() => fileRef.current?.click()} disabled={loading}>
             <input
               ref={fileRef}
               type="file"
@@ -130,11 +138,11 @@ export function InputPanel({ loading, onAnalyzeText, onAnalyzeUrl, onAnalyzeImag
               disabled={loading}
             />
             {fileName ? (
-              <span>📎 {fileName}</span>
+              <><b>Файл выбран</b><span>{fileName}</span></>
             ) : (
-              <span>Нажмите, чтобы выбрать креатив (PNG, JPG, WEBP)</span>
+              <><b>Перетащите или выберите креатив</b><span>PNG, JPG или WEBP · до 10 МБ</span></>
             )}
-          </div>
+          </button>
           <div className="panel__actions">
             <span className="hint">Текст распознаётся через OCR / vision-модель</span>
             <button
