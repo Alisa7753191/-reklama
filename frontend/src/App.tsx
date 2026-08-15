@@ -87,7 +87,7 @@ export default function App() {
         {step < 3 ? (
           <section className="onboarding">
             <div className="onboarding__story">
-              <p className="eyebrow">ЮРИДИЧЕСКИЙ AI-АССИСТЕНТ</p>
+              <p className="eyebrow">ЮРИДИЧЕСКИЙ АССИСТЕНТ</p>
               <h1>Проверьте рекламу<br /><span>до публикации.</span></h1>
               <p className="onboarding__lead">
                 Найдём риски по законодательству РФ, объясним каждое замечание
