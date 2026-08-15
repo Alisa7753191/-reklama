@@ -284,10 +284,17 @@ function label(item, fallback){ const l=item.label; if(l) return l; const t=(fal
 function runCategoryRules(text, cats, low){
   const out = [];
   for(const key of cats){ const c = KB.categories[key]; const title = c.title || key; const proh = c.prohibitions || [];
-    // Карточка категории — только если есть неповторяющийся контекст (непустой prohibitions).
-    if(proh.length) out.push(mk("category_"+key, key, "Особый правовой режим: "+title,
-      "Реклама категории «"+title+"». Обратите внимание на специальные требования законодательства о рекламе:",
-      c.risk_level||"medium", c.law_refs, c.liability_refs, c.practice_refs, proh.slice(), null));
+    // Категория определяется эвристически: показываем конкретные ограничения,
+    // но не выдаём само совпадение категории за установленное нарушение.
+    if(proh.length){
+      const main = proh[0].replace(/\.$/, "");
+      const restrictions = proh.map((item,i)=>(i+1)+") "+item.replace(/\.$/, "")+".").join(" ");
+      out.push(mk("category_"+key, key, "Проверьте ограничение: "+main,
+        "Обнаружены признаки категории «"+title+"». Само совпадение категории не подтверждает нарушение. "+
+        "Проверьте конкретные требования: "+restrictions,
+        c.risk_level||"medium", c.law_refs, c.liability_refs, c.practice_refs,
+        proh.map(item=>"Проверьте и подтвердите: "+item), null));
+    }
     for(const d of (c.required_disclaimers||[])){
       const present = (d.patterns||[]).some(p=>low.includes(p.toLowerCase()));
       if(!present) out.push(mk("disclaimer_"+key+"_"+d.id, key, "Не указано обязательное: "+label(d,d.text),

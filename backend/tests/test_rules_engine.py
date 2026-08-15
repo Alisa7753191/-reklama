@@ -296,8 +296,22 @@ def test_no_category_card_when_specific_checks_cover_it():
 
 
 def test_category_card_kept_when_it_carries_context():
-    # У алкоголя есть неповторяющиеся запреты (интернет-запрет и т.п.) — карточка нужна.
-    assert "category_alcohol" in _ids("Купите вино «Солнечное»")
+    # У алкоголя есть неповторяющиеся запреты (интернет-запрет и т.п.) — карточка нужна,
+    # но она должна называть конкретное ограничение и не выдавать категорию за нарушение.
+    findings, _ = engine.analyze("Купите вино «Солнечное»")
+    card = next(f for f in findings if f.id == "category_alcohol")
+    assert "Особый правовой режим" not in card.title
+    assert "Реклама алкоголя в сети «Интернет» полностью запрещена" in card.title
+    assert "Само совпадение категории не подтверждает нарушение" in card.description
+    assert "обращение к несовершеннолетним" in card.description
+
+
+def test_medicine_category_card_names_concrete_restrictions():
+    findings, _ = engine.analyze("Лекарственный препарат от простуды")
+    card = next(f for f in findings if f.id == "category_medicine")
+    assert "гарантии эффективности" in card.title
+    assert "рецептурных препаратов" in card.description
+    assert all(item.startswith("Проверьте и подтвердите:") for item in card.mitigation)
 
 
 def test_mortgage_subject_to_same_credit_rules():

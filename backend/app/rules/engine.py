@@ -288,26 +288,33 @@ class RulesEngine:
             cat = self.kb.categories[cat_key]
             title = cat.get("title", cat_key)
 
-            # 1) Общая карточка «особый режим категории» выдаётся ТОЛЬКО если есть
-            #    неповторяющийся контекст (непустой prohibitions). Если все требования
-            #    категории уже покрыты отдельными проверками (как у кредита), общая
-            #    карточка не показывается, чтобы не дублировать риски.
+            # 1) Карточка специальных ограничений выдаётся ТОЛЬКО если есть
+            #    неповторяющийся контекст (непустой prohibitions). Это условный риск,
+            #    а не установленное нарушение: категория определена эвристически.
+            #    Поэтому в заголовке показываем конкретное главное ограничение, а в
+            #    описании — полный перечень того, что необходимо проверить.
             prohibitions = cat.get("prohibitions", [])
             if prohibitions:
+                main_restriction = prohibitions[0].rstrip(".")
+                restrictions = " ".join(
+                    f"{index}) {item.rstrip('.')}."
+                    for index, item in enumerate(prohibitions, start=1)
+                )
                 findings.append(
                     self._build_finding(
                         finding_id=f"category_{cat_key}",
                         category=cat_key,
-                        title=f"Особый правовой режим: {title}",
+                        title=f"Проверьте ограничение: {main_restriction}",
                         description=(
-                            f"Реклама категории «{title}». Обратите внимание на "
-                            f"специальные требования законодательства о рекламе:"
+                            f"Обнаружены признаки категории «{title}». Само совпадение "
+                            f"категории не подтверждает нарушение. Проверьте конкретные "
+                            f"требования: {restrictions}"
                         ),
                         risk_level=cat.get("risk_level", "medium"),
                         law_refs=cat.get("law_refs", []),
                         liability_refs=cat.get("liability_refs", []),
                         practice_refs=cat.get("practice_refs", []),
-                        mitigation=list(prohibitions),
+                        mitigation=[f"Проверьте и подтвердите: {item}" for item in prohibitions],
                         evidence=None,
                     )
                 )
