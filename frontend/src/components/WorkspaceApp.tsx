@@ -35,6 +35,9 @@ const NAV_ITEMS: { id: WorkspaceView; label: string; short: string }[] = [
   { id: 'settings', label: 'Настройки', short: 'НС' },
 ]
 
+const ADMINISTRATOR_NAME = 'Алиса Новикова'
+const ADMINISTRATOR_INITIALS = 'АН'
+
 const STATUS_ORDER: ReviewStatus[] = ['draft', 'auto_review', 'lawyer_review', 'needs_changes', 'approved']
 
 interface NewReviewDraft {
@@ -504,9 +507,6 @@ export function WorkspaceApp() {
   const [activeReviewId, setActiveReviewId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('review'))
   const [template, setTemplate] = useState<ReviewTemplate | null>(null)
   const [llmEnabled, setLlmEnabled] = useState<boolean | null>(null)
-  const administrator = data.team.find((member) => member.role === 'Администратор' && member.active)
-    ?? { name: 'Алиса Новикова' }
-  const administratorInitials = administrator.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()
 
   useEffect(() => { saveWorkspace(data); document.documentElement.style.setProperty('--primary', data.settings.accent) }, [data])
   useEffect(() => { getHealth().then((result) => setLlmEnabled(result.llm_enabled)).catch(() => setLlmEnabled(null)) }, [])
@@ -552,10 +552,10 @@ export function WorkspaceApp() {
       <aside className="workspace-nav">
         <button className="workspace-brand" onClick={() => navigate('dashboard')}><span>PR</span><div><b>{data.settings.firmName}</b><small>ADVERTISING COUNSEL</small></div></button>
         <nav>{NAV_ITEMS.map((item) => <button key={item.id} className={view === item.id || (item.id === 'reviews' && view === 'review') ? 'active' : ''} onClick={() => navigate(item.id)}><span>{item.short}</span>{item.label}{item.id === 'reviews' && <i>{data.reviews.filter((review) => ['lawyer_review', 'needs_changes'].includes(review.status)).length}</i>}</button>)}</nav>
-        <div className="workspace-nav__bottom"><div className="system-status"><i /><span><b>Система работает</b><small>{llmEnabled ? 'Правила + ИИ-анализ' : 'Движок правовых правил'}</small></span></div><div className="user-card"><span>{administratorInitials}</span><div><b>{administrator.name}</b><small>Администратор</small></div></div></div>
+        <div className="workspace-nav__bottom"><div className="system-status"><i /><span><b>Система работает</b><small>{llmEnabled ? 'Правила + ИИ-анализ' : 'Движок правовых правил'}</small></span></div><div className="user-card"><span>{ADMINISTRATOR_INITIALS}</span><div><b>{ADMINISTRATOR_NAME}</b><small>Администратор</small></div></div></div>
       </aside>
       <div className="workspace-main">
-        <header className="workspace-topbar"><div><span className="workspace-topbar__dot" />Защищённое рабочее пространство</div><button className="quick-new" onClick={startNew}>+ Новая проверка</button><div className="topbar-profile">{administratorInitials}</div></header>
+        <header className="workspace-topbar"><div><span className="workspace-topbar__dot" />Защищённое рабочее пространство</div><button className="quick-new" onClick={startNew}>+ Новая проверка</button><div className="topbar-profile">{ADMINISTRATOR_INITIALS}</div></header>
         <main className="workspace-content">{page}</main>
         <footer className="workspace-footer"><span>© 2026 {data.settings.firmName}</span><span>Автоматический анализ требует профессиональной проверки юристом</span></footer>
       </div>

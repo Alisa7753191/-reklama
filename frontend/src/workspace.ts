@@ -285,7 +285,7 @@ export function loadWorkspace(): WorkspaceData {
     const currentAdmin = 'Алиса Новикова'
     return {
       ...workspace,
-      team: workspace.team.map((member) => member.name === previousAdmin
+      team: workspace.team.map((member) => member.id === 'team-1' || member.name === previousAdmin
         ? { ...member, name: currentAdmin, email: member.email === 'a.krylova@lex.demo' ? 'a.novikova@lex.demo' : member.email }
         : member),
       reviews: workspace.reviews.map((review) => ({
