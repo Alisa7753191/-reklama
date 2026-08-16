@@ -92,6 +92,10 @@ export interface KnowledgeEntry {
   category: string
   updatedAt: string
   enabled: boolean
+  documentId?: string
+  documentName?: string
+  documentType?: string
+  documentSize?: number
 }
 
 export interface TeamMember {

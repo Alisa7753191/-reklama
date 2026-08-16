@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { analyzeImage, analyzeText, analyzeUrl, getHealth, type Channel } from '../api'
 import { CHANNEL_LABEL, RISK_LABEL } from '../labels'
+import { downloadKnowledgeDocument, formatDocumentSize, saveKnowledgeDocument } from '../knowledgeDocumentStorage'
 import { exportReviewToWord } from '../reportExport'
 import type { AnalysisContext, InputType, Report } from '../types'
 import {
@@ -272,27 +273,99 @@ function KnowledgePage({ data, onChange }: { data: WorkspaceData; onChange: (dat
   const [title, setTitle] = useState('')
   const [source, setSource] = useState('')
   const [article, setArticle] = useState('')
-  const entries = data.knowledge.filter((entry) => `${entry.title} ${entry.source} ${entry.article}`.toLowerCase().includes(query.toLowerCase()))
+  const [documentFile, setDocumentFile] = useState<File | null>(null)
+  const [fileInputKey, setFileInputKey] = useState(0)
+  const [formError, setFormError] = useState('')
+  const [documentNotice, setDocumentNotice] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+  const entries = data.knowledge.filter((entry) => `${entry.title} ${entry.source} ${entry.article} ${entry.documentName ?? ''}`.toLowerCase().includes(query.toLowerCase()))
 
-  function addEntry(event: React.FormEvent) {
+  function selectDocument(file: File | null) {
+    setFormError('')
+    if (!file) { setDocumentFile(null); return }
+    const extension = file.name.split('.').pop()?.toLowerCase() ?? ''
+    if (!['pdf', 'doc', 'docx', 'rtf', 'txt'].includes(extension)) {
+      setDocumentFile(null)
+      setFileInputKey((value) => value + 1)
+      setFormError('Поддерживаются документы PDF, DOC, DOCX, RTF и TXT')
+      return
+    }
+    if (file.size > 25 * 1_048_576) {
+      setDocumentFile(null)
+      setFileInputKey((value) => value + 1)
+      setFormError('Размер документа не должен превышать 25 МБ')
+      return
+    }
+    setDocumentFile(file)
+    if (!title.trim()) setTitle(file.name.replace(/\.[^.]+$/, ''))
+    if (!source.trim()) setSource(file.name)
+  }
+
+  async function addEntry(event: React.FormEvent) {
     event.preventDefault()
     if (!title.trim() || !source.trim()) return
-    const entry: KnowledgeEntry = { id: createId('kb'), title: title.trim(), source: source.trim(), article: article.trim(), category: 'Материал компании', updatedAt: new Date().toISOString().slice(0, 10), enabled: true }
-    onChange({ ...data, knowledge: [entry, ...data.knowledge] })
-    setTitle(''); setSource(''); setArticle(''); setShowForm(false)
+    setIsSaving(true); setFormError(''); setDocumentNotice('')
+    const id = createId('kb')
+    try {
+      if (documentFile) await saveKnowledgeDocument(id, documentFile)
+      const entry: KnowledgeEntry = {
+        id,
+        title: title.trim(),
+        source: source.trim(),
+        article: article.trim(),
+        category: documentFile ? 'Документ компании' : 'Материал компании',
+        updatedAt: new Date().toISOString().slice(0, 10),
+        enabled: true,
+        documentId: documentFile ? id : undefined,
+        documentName: documentFile?.name,
+        documentType: documentFile?.type,
+        documentSize: documentFile?.size,
+      }
+      onChange({ ...data, knowledge: [entry, ...data.knowledge] })
+      setDocumentNotice(documentFile ? `Документ «${documentFile.name}» добавлен в базу знаний` : 'Источник добавлен в базу знаний')
+      setTitle(''); setSource(''); setArticle(''); setDocumentFile(null); setFileInputKey((value) => value + 1); setShowForm(false)
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Не удалось сохранить документ')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   function toggleEntry(id: string) {
     onChange({ ...data, knowledge: data.knowledge.map((entry) => entry.id === id ? { ...entry, enabled: !entry.enabled } : entry) })
   }
 
+  async function downloadDocument(entry: KnowledgeEntry) {
+    if (!entry.documentId) return
+    setDocumentNotice('')
+    try {
+      await downloadKnowledgeDocument(entry.documentId)
+    } catch (error) {
+      setDocumentNotice(error instanceof Error ? error.message : 'Не удалось скачать документ')
+    }
+  }
+
   return (
     <>
-      <PageHeader eyebrow="LEGAL KNOWLEDGE BASE" title="База знаний" description="Нормы, практика и внутренние позиции, на которых строится юридический анализ." action={<button className="btn btn--primary" onClick={() => setShowForm((value) => !value)}>+ Добавить источник</button>} />
-      {showForm && <form className="inline-create-form" onSubmit={addEntry}><label>Название<input className="input" value={title} onChange={(event) => setTitle(event.target.value)} required /></label><label>Источник<input className="input" value={source} onChange={(event) => setSource(event.target.value)} required /></label><label>Статья<input className="input" value={article} onChange={(event) => setArticle(event.target.value)} /></label><button className="btn btn--primary">Сохранить</button></form>}
+      <PageHeader eyebrow="LEGAL KNOWLEDGE BASE" title="База знаний" description="Нормы, практика, документы и внутренние позиции, на которых строится юридический анализ." action={<button className="btn btn--primary" onClick={() => { setShowForm((value) => !value); setFormError('') }}>+ Добавить документ</button>} />
+      {documentNotice && <div className="knowledge-notice" role="status"><span>✓</span>{documentNotice}<button type="button" aria-label="Закрыть уведомление" onClick={() => setDocumentNotice('')}>×</button></div>}
+      {showForm && <form className="knowledge-create-form" onSubmit={addEntry}>
+        <div className="knowledge-create-form__fields">
+          <label>Название<input className="input" value={title} onChange={(event) => setTitle(event.target.value)} required /></label>
+          <label>Источник<input className="input" value={source} onChange={(event) => setSource(event.target.value)} required /></label>
+          <label>Статья или раздел<input className="input" value={article} onChange={(event) => setArticle(event.target.value)} /></label>
+        </div>
+        <label className={`document-drop ${documentFile ? 'document-drop--selected' : ''}`}>
+          <input key={fileInputKey} type="file" accept=".pdf,.doc,.docx,.rtf,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,application/rtf" onChange={(event) => selectDocument(event.target.files?.[0] ?? null)} />
+          <span>{documentFile ? '✓' : '↑'}</span>
+          <div><b>{documentFile ? documentFile.name : 'Выберите документ'}</b><small>{documentFile ? `${formatDocumentSize(documentFile.size)} · готов к загрузке` : 'PDF, DOC, DOCX, RTF или TXT · до 25 МБ'}</small></div>
+        </label>
+        {formError && <p className="knowledge-form-error" role="alert">{formError}</p>}
+        <div className="knowledge-create-form__actions"><button type="button" className="btn btn--ghost" onClick={() => setShowForm(false)}>Отмена</button><button className="btn btn--primary" disabled={isSaving}>{isSaving ? 'Сохраняем…' : 'Сохранить в базе'}</button></div>
+      </form>}
       <div className="filters-row"><input className="input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Найти норму или практику" /><span className="knowledge-count">{entries.filter((entry) => entry.enabled).length} активных источников</span></div>
       <div className="knowledge-list">
-        {entries.map((entry) => <article key={entry.id} className={entry.enabled ? '' : 'is-disabled'}><div><span>{entry.category}</span><h2>{entry.title}</h2><p>{entry.source} · {entry.article}</p></div><div><small>Актуально на {entry.updatedAt}</small><button className={`switch ${entry.enabled ? 'switch--on' : ''}`} aria-label="Включить источник" onClick={() => toggleEntry(entry.id)}><i /></button></div></article>)}
+        {entries.map((entry) => <article key={entry.id} className={entry.enabled ? '' : 'is-disabled'}><div><span>{entry.category}</span><h2>{entry.title}</h2><p>{entry.source}{entry.article ? ` · ${entry.article}` : ''}</p>{entry.documentId && <button type="button" className="knowledge-document" onClick={() => downloadDocument(entry)}><i>{entry.documentName?.split('.').pop()?.toUpperCase() ?? 'FILE'}</i><span><b>{entry.documentName}</b><small>{entry.documentSize ? formatDocumentSize(entry.documentSize) : 'Документ'}</small></span><em>Скачать ↓</em></button>}</div><div><small>Актуально на {entry.updatedAt}</small><button className={`switch ${entry.enabled ? 'switch--on' : ''}`} aria-label="Включить источник" onClick={() => toggleEntry(entry.id)}><i /></button></div></article>)}
       </div>
     </>
   )
