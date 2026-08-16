@@ -1607,7 +1607,9 @@ a:focus-visible {
 .client-card__mark { width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid rgba(57, 242, 138, 0.28); border-radius: 13px; background: var(--primary-soft); color: var(--primary); font-size: 10px; font-weight: 850; }
 .client-card h2 { font-size: 17px; }
 .client-card p { margin: 6px 0 0; color: var(--muted); font-size: 9px; }
-.client-card footer { grid-column: 1 / -1; align-self: end; display: flex; justify-content: space-between; padding-top: 14px; border-top: 1px solid var(--border); color: var(--muted-2); font-size: 9px; }
+.client-card footer { grid-column: 1 / -1; align-self: end; display: flex; align-items: center; gap: 14px; padding-top: 14px; border-top: 1px solid var(--border); color: var(--muted-2); font-size: 9px; }
+.client-delete { margin-left: auto; padding: 5px 0; border: 0; background: transparent; color: #ff7f8c; font: inherit; font-size: 9px; font-weight: 800; cursor: pointer; }
+.client-delete:hover { color: #ffb1b9; }
 
 .template-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .template-card { min-height: 250px; display: flex; flex-direction: column; position: relative; overflow: hidden; }

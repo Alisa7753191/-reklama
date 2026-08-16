@@ -209,18 +209,35 @@ function ClientsPage({ data, onChange }: { data: WorkspaceData; onChange: (data:
   const [name, setName] = useState('')
   const [industry, setIndustry] = useState('')
   const [contact, setContact] = useState('')
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null)
+  const [notice, setNotice] = useState('')
 
   function addClient(event: React.FormEvent) {
     event.preventDefault()
     if (!name.trim()) return
     const client: Client = { id: createId('client'), name: name.trim(), industry: industry.trim() || 'Не указана', contact: contact.trim(), createdAt: new Date().toISOString() }
     onChange({ ...data, clients: [client, ...data.clients] })
-    setName(''); setIndustry(''); setContact(''); setFormOpen(false)
+    setName(''); setIndustry(''); setContact(''); setFormOpen(false); setNotice(`${client.name} добавлен в список клиентов`)
+  }
+
+  function deleteClient() {
+    if (!clientToDelete) return
+    const relatedReviews = data.reviews.filter((review) => review.clientId === clientToDelete.id).length
+    onChange({ ...data, clients: data.clients.filter((client) => client.id !== clientToDelete.id) })
+    setNotice(relatedReviews > 0
+      ? `${clientToDelete.name} удалён. Связанные проверки сохранены в реестре.`
+      : `${clientToDelete.name} удалён из списка клиентов`)
+    setClientToDelete(null)
   }
 
   return (
     <>
       <PageHeader eyebrow="КЛИЕНТСКИЙ ПОРТФЕЛЬ" title="Клиенты" description="Организации и рекламные проекты, разделённые внутри рабочего пространства." action={<button className="btn btn--primary" onClick={() => setFormOpen((value) => !value)}>+ Добавить клиента</button>} />
+      {notice && <div className="team-notice" role="status"><span>✓</span>{notice}<button type="button" aria-label="Закрыть уведомление" onClick={() => setNotice('')}>×</button></div>}
+      {clientToDelete && <section className="team-confirm" role="alertdialog" aria-labelledby="remove-client-title">
+        <div><span>УДАЛЕНИЕ КЛИЕНТА</span><h2 id="remove-client-title">Удалить {clientToDelete.name}?</h2><p>{data.reviews.some((review) => review.clientId === clientToDelete.id) ? 'Клиент исчезнет из списка, но связанные проверки и юридическая история сохранятся в реестре.' : 'Карточка клиента будет удалена из рабочего пространства.'}</p></div>
+        <div><button type="button" className="btn btn--ghost" onClick={() => setClientToDelete(null)}>Отмена</button><button type="button" className="btn btn--danger" onClick={deleteClient}>Удалить</button></div>
+      </section>}
       {formOpen && (
         <form className="inline-create-form" onSubmit={addClient}>
           <label>Название<input className="input" value={name} onChange={(event) => setName(event.target.value)} required /></label>
@@ -232,7 +249,7 @@ function ClientsPage({ data, onChange }: { data: WorkspaceData; onChange: (data:
       <div className="client-grid">
         {data.clients.map((client) => {
           const reviews = data.reviews.filter((review) => review.clientId === client.id)
-          return <article className="client-card" key={client.id}><div className="client-card__mark">{client.name.slice(0, 2).toUpperCase()}</div><div><span>{client.industry}</span><h2>{client.name}</h2><p>{client.contact || 'Контакт не указан'}</p></div><footer><span>{reviews.length} проверок</span><span>{reviews.filter((review) => review.status === 'approved').length} согласовано</span></footer></article>
+          return <article className="client-card" key={client.id}><div className="client-card__mark">{client.name.slice(0, 2).toUpperCase()}</div><div><span>{client.industry}</span><h2>{client.name}</h2><p>{client.contact || 'Контакт не указан'}</p></div><footer><span>{reviews.length} проверок</span><span>{reviews.filter((review) => review.status === 'approved').length} согласовано</span><button type="button" className="client-delete" onClick={() => setClientToDelete(client)}>Удалить</button></footer></article>
         })}
       </div>
     </>
