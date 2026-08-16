@@ -550,11 +550,17 @@ function NewReviewPage({ data, initialTemplate, onCancel, onCreated }: { data: W
 
 function ReviewPage({ review, client, settings, onBack, onUpdate }: { review: ReviewMatter; client: Client | undefined; settings: WorkspaceSettings; onBack: () => void; onUpdate: (review: ReviewMatter) => void }) {
   const [comment, setComment] = useState('')
-  const [revisionOpen, setRevisionOpen] = useState(false)
   const [revisionText, setRevisionText] = useState(review.report?.extracted_text ?? '')
   const [rechecking, setRechecking] = useState(false)
   const [error, setError] = useState('')
   const [exportNotice, setExportNotice] = useState('')
+  const [revisionNotice, setRevisionNotice] = useState('')
+
+  useEffect(() => {
+    setRevisionText(review.report?.extracted_text ?? review.versions[review.versions.length - 1]?.text ?? '')
+    setError('')
+    setRevisionNotice('')
+  }, [review.id])
 
   function changeStatus(status: ReviewStatus) {
     onUpdate({ ...review, status, reviewer: status === 'approved' ? settings.signatory : review.reviewer, updatedAt: new Date().toISOString() })
@@ -569,12 +575,13 @@ function ReviewPage({ review, client, settings, onBack, onUpdate }: { review: Re
 
   async function analyzeRevision() {
     if (!revisionText.trim()) return
-    setRechecking(true); setError('')
+    setRechecking(true); setError(''); setRevisionNotice('')
     try {
       const report = await analyzeText(revisionText, review.context.channel, { company_description: review.context.company, product_description: review.context.product })
       const updatedAt = new Date().toISOString()
       onUpdate({ ...review, report, status: 'lawyer_review', reviewer: null, materialType: 'text', materialLabel: `Редакция ${review.versions.length + 1}`, versions: [...review.versions, { id: createId('version'), number: review.versions.length + 1, createdAt: updatedAt, text: report.extracted_text, overallRisk: report.overall_risk, findingsCount: report.findings.length }], updatedAt })
-      setRevisionOpen(false)
+      setRevisionText(report.extracted_text || revisionText)
+      setRevisionNotice(`Редакция v${review.versions.length + 1} проверена — список рисков обновлён`)
     } catch (caught) { setError(caught instanceof Error ? caught.message : 'Не удалось проверить новую редакцию.') } finally { setRechecking(false) }
   }
 
@@ -594,17 +601,23 @@ function ReviewPage({ review, client, settings, onBack, onUpdate }: { review: Re
 
       <div className="review-workbench">
         <main>
+          {review.report && <section className="persistent-ad-editor" id="ad-text-editor">
+            <header><div><p className="eyebrow">РЕДАКТОР РЕКЛАМНОГО ТЕКСТА</p><h2>Исправляйте текст, не закрывая риски</h2><p>Внесите изменения и запустите повторную проверку — отчёт ниже обновится, а предыдущая версия сохранится в истории.</p></div><span>v{review.versions.length}</span></header>
+            <textarea className="textarea" value={revisionText} onChange={(event) => { setRevisionText(event.target.value); setRevisionNotice(''); setError('') }} disabled={rechecking} maxLength={20_000} aria-label="Рекламный текст для исправления" />
+            <footer><span>{revisionText.length.toLocaleString('ru-RU')} / 20 000</span><div><button className="btn btn--secondary" disabled={rechecking} onClick={() => { setRevisionText(review.report?.extracted_text ?? ''); setRevisionNotice(''); setError('') }}>Вернуть текущую версию</button><button className="btn btn--primary" disabled={rechecking || !revisionText.trim()} onClick={analyzeRevision}>{rechecking ? 'Проверяем…' : 'Проверить исправления'}</button></div></footer>
+            {revisionNotice && <div className="editor-success" role="status">✓ {revisionNotice}</div>}
+            {error && <div className="error" role="alert">{error}</div>}
+          </section>}
           {!review.report ? (
             <div className="workspace-card no-report"><span>ЧЕРНОВИК ДЕЛА</span><h2>Автоматический отчёт ещё не сохранён</h2><p>Создайте новую проверку материала, чтобы получить подробные замечания и заключение.</p></div>
           ) : <ReportView report={review.report} />}
         </main>
         <aside className="review-sidebar">
           <section className="workspace-card review-control"><span>РЕШЕНИЕ ЮРИСТА</span><h2>Статус дела</h2><select value={review.status} onChange={(event) => changeStatus(event.target.value as ReviewStatus)}>{STATUS_ORDER.map((status) => <option key={status} value={status}>{STATUS_LABEL[status]}</option>)}</select>{review.reviewer && <p className="reviewer-line">✓ {review.reviewer}</p>}</section>
-          <section className="workspace-card"><div className="section-head"><div><span>ВЕРСИИ</span><h2>История материала</h2></div><b>{review.versions.length}</b></div><div className="version-list">{review.versions.map((version) => <div key={version.id}><b>v{version.number}</b><p>{RISK_LABEL[version.overallRisk]} риск · {version.findingsCount} замечаний</p><small>{formatDate(version.createdAt)}</small></div>)}</div>{review.report && <button className="btn btn--secondary btn--full" onClick={() => setRevisionOpen((value) => !value)}>+ Новая редакция</button>}</section>
+          <section className="workspace-card"><div className="section-head"><div><span>ВЕРСИИ</span><h2>История материала</h2></div><b>{review.versions.length}</b></div><div className="version-list">{review.versions.map((version) => <div key={version.id}><b>v{version.number}</b><p>{RISK_LABEL[version.overallRisk]} риск · {version.findingsCount} замечаний</p><small>{formatDate(version.createdAt)}</small></div>)}</div>{review.report && <button className="btn btn--secondary btn--full" onClick={() => document.getElementById('ad-text-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>↑ К редактору текста</button>}</section>
           <section className="workspace-card"><span>КОММЕНТАРИИ</span><h2>Обсуждение</h2><div className="comment-list">{review.comments.map((item) => <div key={item.id}><b>{item.author}</b><p>{item.text}</p><small>{formatDate(item.createdAt)}</small></div>)}{review.comments.length === 0 && <p className="muted-empty">Комментариев пока нет.</p>}</div><form className="comment-form" onSubmit={addComment}><textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Комментарий для команды…" /><button className="btn btn--primary" disabled={!comment.trim()}>Добавить</button></form></section>
         </aside>
       </div>
-      {revisionOpen && <section className="revision-drawer"><div><p className="eyebrow">НОВАЯ ВЕРСИЯ</p><h2>Проверьте исправленную редакцию</h2><p>После анализа она появится в истории, а дело вернётся на проверку юриста.</p></div><textarea className="textarea" value={revisionText} onChange={(event) => setRevisionText(event.target.value)} /><div><button className="btn btn--secondary" onClick={() => setRevisionOpen(false)}>Отмена</button><button className="btn btn--primary" disabled={rechecking || !revisionText.trim()} onClick={analyzeRevision}>{rechecking ? 'Проверяем…' : 'Проверить редакцию'}</button></div>{error && <div className="error">{error}</div>}</section>}
     </>
   )
 }
