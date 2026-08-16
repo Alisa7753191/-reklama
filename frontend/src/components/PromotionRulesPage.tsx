@@ -37,8 +37,8 @@ export function PromotionRulesPage({ settings }: { settings: WorkspaceSettings }
     setMode(next); setReport(null); setError(''); setNotice('')
   }
 
-  function composeRules(event: React.FormEvent) {
-    event.preventDefault()
+  function composeRules(event?: React.FormEvent) {
+    event?.preventDefault()
     if (draft.separateParticipationFee && draft.randomSelection) {
       setError('Нельзя составить безопасный проект: отдельная плата за участие вместе со случайным выигрышем создаёт критический риск незаконной лотереи. Уберите плату или измените способ определения результата.')
       return
@@ -65,8 +65,8 @@ export function PromotionRulesPage({ settings }: { settings: WorkspaceSettings }
   }
 
   const readiness = getPromotionReadiness(draft)
-  const requiredDraftReady = Boolean(draft.name.trim() && readiness.every((item) => item.ready))
   const criticalQualificationRisk = readiness.some((item) => item.critical)
+  const incompleteSections = readiness.filter((item) => !item.ready && !item.critical).length
 
   return (
     <>
@@ -88,13 +88,18 @@ export function PromotionRulesPage({ settings }: { settings: WorkspaceSettings }
           <div><span>04</span><b>Закрыть выдачу</b><small>Связь, документы, данные и налоги</small></div>
         </section>
 
+        <section className="promotion-quick-draft">
+          <div><b>Можно начать с черновика</b><p>Заполните только то, что уже известно. В остальных местах останутся заметные пометки «указать…» — их можно дополнить прямо в готовом тексте.</p></div>
+          <button type="button" className="btn btn--primary" disabled={criticalQualificationRisk} onClick={() => composeRules()}>Создать черновик сейчас →</button>
+        </section>
+
         <form className="promotion-builder" onSubmit={composeRules}>
           <section className="workspace-card promotion-builder__main">
             <div className="section-head"><div><span>КВАЛИФИКАЦИЯ И РОЛИ</span><h2>Кто и что проводит</h2></div><b>1 / 4</b></div>
             <div className="form-grid">
-              <label className="form-grid__wide">Название акции<input className="input" value={draft.name} onChange={(event) => update('name', event.target.value)} placeholder="Например: Лето с подарками" required /></label>
+              <label className="form-grid__wide">Название акции<input className="input" value={draft.name} onChange={(event) => update('name', event.target.value)} placeholder="Например: Лето с подарками" /></label>
               <label className="form-grid__wide">Вид мероприятия<select value={draft.kind} onChange={(event) => changeKind(event.target.value as PromotionDraft['kind'])}>{Object.entries(PROMOTION_KIND_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><small className="field-hint">При смене вида подставляется рекомендуемая механика</small></label>
-              <label className="form-grid__wide">Организатор<input className="input" value={draft.organizer} onChange={(event) => update('organizer', event.target.value)} placeholder="Полное наименование юридического лица или ИП" required /></label>
+              <label className="form-grid__wide">Организатор<input className="input" value={draft.organizer} onChange={(event) => update('organizer', event.target.value)} placeholder="Полное наименование юридического лица или ИП" /></label>
               <label className="form-grid__wide">Реквизиты и контакты<textarea className="textarea compact-textarea" value={draft.organizerDetails} onChange={(event) => update('organizerDetails', event.target.value)} placeholder="Адрес, ИНН, ОГРН, e-mail и телефон" /></label>
               <label className="form-grid__wide">Технический оператор — если есть<input className="input" value={draft.technicalOperator} onChange={(event) => update('technicalOperator', event.target.value)} placeholder="Наименование, реквизиты и функции" /></label>
               <label>Территория<input className="input" value={draft.territory} onChange={(event) => update('territory', event.target.value)} /></label>
@@ -111,12 +116,12 @@ export function PromotionRulesPage({ settings }: { settings: WorkspaceSettings }
           <section className="workspace-card promotion-builder__main">
             <div className="section-head"><div><span>КАЛЕНДАРЬ</span><h2>Все юридически значимые сроки</h2></div><b>2 / 4</b></div>
             <div className="form-grid">
-              <label>Начало акции<input className="input" type="date" value={draft.startDate} onChange={(event) => update('startDate', event.target.value)} required /></label>
-              <label>Окончание акции<input className="input" type="date" min={draft.startDate} value={draft.endDate} onChange={(event) => update('endDate', event.target.value)} required /></label>
-              <label>Начало приёма заявок<input className="input" type="date" min={draft.startDate} max={draft.endDate} value={draft.entryStartDate} onChange={(event) => update('entryStartDate', event.target.value)} required /></label>
-              <label>Конец приёма заявок<input className="input" type="date" min={draft.entryStartDate || draft.startDate} max={draft.endDate} value={draft.entryEndDate} onChange={(event) => update('entryEndDate', event.target.value)} required /></label>
-              <label>Дата выбора победителей<input className="input" type="date" min={draft.entryEndDate} max={draft.endDate} value={draft.winnerDate} onChange={(event) => update('winnerDate', event.target.value)} required /></label>
-              <label>Выдать призы не позднее<input className="input" type="date" min={draft.winnerDate} max={draft.endDate} value={draft.deliveryEndDate} onChange={(event) => update('deliveryEndDate', event.target.value)} required /></label>
+              <label>Начало акции<input className="input" type="date" value={draft.startDate} onChange={(event) => update('startDate', event.target.value)} /></label>
+              <label>Окончание акции<input className="input" type="date" min={draft.startDate} value={draft.endDate} onChange={(event) => update('endDate', event.target.value)} /></label>
+              <label>Начало приёма заявок<input className="input" type="date" min={draft.startDate} max={draft.endDate} value={draft.entryStartDate} onChange={(event) => update('entryStartDate', event.target.value)} /></label>
+              <label>Конец приёма заявок<input className="input" type="date" min={draft.entryStartDate || draft.startDate} max={draft.endDate} value={draft.entryEndDate} onChange={(event) => update('entryEndDate', event.target.value)} /></label>
+              <label>Дата выбора победителей<input className="input" type="date" min={draft.entryEndDate} max={draft.endDate} value={draft.winnerDate} onChange={(event) => update('winnerDate', event.target.value)} /></label>
+              <label>Выдать призы не позднее<input className="input" type="date" min={draft.winnerDate} max={draft.endDate} value={draft.deliveryEndDate} onChange={(event) => update('deliveryEndDate', event.target.value)} /></label>
             </div>
             <div className="promotion-guidance"><b>Почему это важно</b><p>В реальных правилах общий срок включает не только регистрацию, но и определение победителей и выдачу призов. Конструктор проверяет, что период заявок находится внутри общего срока.</p></div>
           </section>
@@ -124,23 +129,23 @@ export function PromotionRulesPage({ settings }: { settings: WorkspaceSettings }
           <section className="workspace-card promotion-builder__main">
             <div className="section-head"><div><span>ЗАЯВКИ И ПРОВЕРКА</span><h2>Что делает участник</h2></div><b>3 / 4</b></div>
             <div className="promotion-long-fields promotion-long-fields--single">
-              <label>Действия участника<textarea className="textarea" value={draft.mechanics} onChange={(event) => update('mechanics', event.target.value)} placeholder="По шагам: покупка, регистрация чека, заявка…" required /></label>
-              <label>Количество заявок и дубли<textarea className="textarea" value={draft.entryLimit} onChange={(event) => update('entryLimit', event.target.value)} required /></label>
-              <label>Как проверяются заявки или чеки<textarea className="textarea" value={draft.validationProcedure} onChange={(event) => update('validationProcedure', event.target.value)} required /></label>
-              <label>Исчерпывающие основания отклонения<textarea className="textarea" value={draft.rejectionGrounds} onChange={(event) => update('rejectionGrounds', event.target.value)} required /></label>
+              <label>Действия участника<textarea className="textarea" value={draft.mechanics} onChange={(event) => update('mechanics', event.target.value)} placeholder="По шагам: покупка, регистрация чека, заявка…" /></label>
+              <label>Количество заявок и дубли<textarea className="textarea" value={draft.entryLimit} onChange={(event) => update('entryLimit', event.target.value)} /></label>
+              <label>Как проверяются заявки или чеки<textarea className="textarea" value={draft.validationProcedure} onChange={(event) => update('validationProcedure', event.target.value)} /></label>
+              <label>Исчерпывающие основания отклонения<textarea className="textarea" value={draft.rejectionGrounds} onChange={(event) => update('rejectionGrounds', event.target.value)} /></label>
             </div>
           </section>
 
           <section className="workspace-card promotion-builder__main">
             <div className="section-head"><div><span>ПОБЕДИТЕЛИ И ПРИЗЫ</span><h2>Как завершить акцию</h2></div><b>4 / 4</b></div>
             <div className="promotion-long-fields promotion-long-fields--single">
-              <label>Призовой фонд<textarea className="textarea" value={draft.prizes} onChange={(event) => update('prizes', event.target.value)} placeholder="Название, количество и стоимость каждого вида призов" required /></label>
-              <label>Определение победителей<textarea className="textarea" value={draft.winnerMethod} onChange={(event) => update('winnerMethod', event.target.value)} required /></label>
-              <label>Как уведомить победителя<textarea className="textarea" value={draft.notificationMethod} onChange={(event) => update('notificationMethod', event.target.value)} required /></label>
-              <label>Срок ответа победителя<input className="input" value={draft.responseDeadline} onChange={(event) => update('responseDeadline', event.target.value)} placeholder="Например: 5 рабочих дней" required /></label>
-              <label>Документы победителя<textarea className="textarea" value={draft.winnerDocuments} onChange={(event) => update('winnerDocuments', event.target.value)} required /></label>
-              <label>Порядок вручения<textarea className="textarea" value={draft.prizeDelivery} onChange={(event) => update('prizeDelivery', event.target.value)} required /></label>
-              <label>Невостребованные призы<textarea className="textarea" value={draft.unclaimedPrizes} onChange={(event) => update('unclaimedPrizes', event.target.value)} required /></label>
+              <label>Призовой фонд<textarea className="textarea" value={draft.prizes} onChange={(event) => update('prizes', event.target.value)} placeholder="Название, количество и стоимость каждого вида призов" /></label>
+              <label>Определение победителей<textarea className="textarea" value={draft.winnerMethod} onChange={(event) => update('winnerMethod', event.target.value)} /></label>
+              <label>Как уведомить победителя<textarea className="textarea" value={draft.notificationMethod} onChange={(event) => update('notificationMethod', event.target.value)} /></label>
+              <label>Срок ответа победителя<input className="input" value={draft.responseDeadline} onChange={(event) => update('responseDeadline', event.target.value)} placeholder="Например: 5 рабочих дней" /></label>
+              <label>Документы победителя<textarea className="textarea" value={draft.winnerDocuments} onChange={(event) => update('winnerDocuments', event.target.value)} /></label>
+              <label>Порядок вручения<textarea className="textarea" value={draft.prizeDelivery} onChange={(event) => update('prizeDelivery', event.target.value)} /></label>
+              <label>Невостребованные призы<textarea className="textarea" value={draft.unclaimedPrizes} onChange={(event) => update('unclaimedPrizes', event.target.value)} /></label>
             </div>
             <div className="promotion-switches">
               <label><input type="checkbox" checked={draft.collectsPersonalData} onChange={(event) => update('collectsPersonalData', event.target.checked)} /><span><b>Персональные данные</b><small>Контакты или документы победителя</small></span></label>
@@ -154,7 +159,7 @@ export function PromotionRulesPage({ settings }: { settings: WorkspaceSettings }
             <div className="promotion-readiness__grid">{readiness.map((item) => <article key={item.id} className={item.critical ? 'is-critical' : item.ready ? 'is-ready' : ''}><span>{item.critical ? '!' : item.ready ? '✓' : '○'}</span><div><b>{item.label}</b><small>{item.detail}</small></div></article>)}</div>
             {criticalQualificationRisk && <div className="promotion-danger" role="alert"><b>Критический риск лотереи</b><p>Отдельная плата за участие и случайный выигрыш не могут быть автоматически оформлены как обычная рекламная акция. Генерация заблокирована до изменения механики.</p></div>}
             {error && <div className="error" role="alert">{error}</div>}
-            <div className="promotion-builder__submit"><p>Шаблон учитывает практику реальных чековых акций, конкурсов и программ лояльности, но фактическую механику, рекламу, согласия и налоги должен подтвердить юрист.</p><button className="btn btn--primary" disabled={!requiredDraftReady}>Составить проект правил →</button></div>
+            <div className="promotion-builder__submit"><p>{incompleteSections > 0 ? `Можно создать черновик сейчас. Незавершённые разделы (${incompleteSections}) будут отмечены в тексте подсказками «указать…».` : 'Все основные разделы заполнены. После создания проверьте формулировки и запустите юридическую проверку.'}</p><button className="btn btn--primary" disabled={criticalQualificationRisk}>{criticalQualificationRisk ? 'Измените опасную механику' : 'Составить проект правил →'}</button></div>
           </section>
         </form>
       </>}

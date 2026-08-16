@@ -1674,6 +1674,11 @@ a:focus-visible {
 .promotion-method span { width: 27px; height: 27px; grid-row: 1 / 3; display: grid; place-items: center; border-radius: 8px; background: var(--primary-soft); color: var(--primary); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 7px; }
 .promotion-method b { color: #d8e2db; font-size: 9px; }
 .promotion-method small { color: var(--muted); font-size: 7px; line-height: 1.35; }
+.promotion-quick-draft { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 14px; padding: 15px 17px; border: 1px solid rgba(57,242,138,.3); border-radius: 13px; background: linear-gradient(120deg, rgba(57,242,138,.1), rgba(8,14,10,.92)); }
+.promotion-quick-draft > div { min-width: 0; }
+.promotion-quick-draft b { color: var(--primary); font-size: 10px; }
+.promotion-quick-draft p { max-width: 720px; margin: 5px 0 0; color: var(--muted); font-size: 8px; line-height: 1.5; }
+.promotion-quick-draft .btn { flex: 0 0 auto; }
 .promotion-builder { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 14px; }
 .promotion-builder__wide { grid-column: 1 / -1; }
 .promotion-builder__main { padding: 21px; }
@@ -1924,6 +1929,8 @@ a:focus-visible {
   .promotion-mode-tabs { grid-template-columns: 1fr; }
   .promotion-mode-tabs button { min-height: 84px; }
   .promotion-method { grid-template-columns: 1fr 1fr; }
+  .promotion-quick-draft { align-items: stretch; flex-direction: column; }
+  .promotion-quick-draft .btn { width: 100%; }
   .promotion-builder__main { padding: 16px; }
   .promotion-builder .form-grid,
   .promotion-long-fields,
