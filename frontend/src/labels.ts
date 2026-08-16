@@ -34,6 +34,7 @@ export const CATEGORY_LABEL: Record<string, string> = {
   weapons: 'Оружие',
   cfa: 'Цифровые финансовые активы',
   rent_contract: 'Пожизненная рента',
+  promotion: 'Акции, конкурсы и розыгрыши',
 }
 
 export const CHANNEL_LABEL: Record<string, string> = {

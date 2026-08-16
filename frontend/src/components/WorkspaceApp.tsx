@@ -23,11 +23,13 @@ import {
   type WorkspaceView,
 } from '../workspace'
 import { InputPanel } from './InputPanel'
+import { PromotionRulesPage } from './PromotionRulesPage'
 import { ReportView } from './ReportView'
 
 const NAV_ITEMS: { id: WorkspaceView; label: string; short: string }[] = [
   { id: 'dashboard', label: 'Обзор', short: 'ОБ' },
   { id: 'reviews', label: 'Проверки', short: 'ПР' },
+  { id: 'promotions', label: 'Правила акций', short: 'ПА' },
   { id: 'clients', label: 'Клиенты', short: 'КЛ' },
   { id: 'templates', label: 'Шаблоны', short: 'ШБ' },
   { id: 'knowledge', label: 'База знаний', short: 'БЗ' },
@@ -641,7 +643,12 @@ function ReviewPage({ review, client, settings, onBack, onUpdate }: { review: Re
 
 export function WorkspaceApp() {
   const [data, setData] = useState<WorkspaceData>(() => loadWorkspace())
-  const [view, setView] = useState<WorkspaceView>(() => new URLSearchParams(window.location.search).has('review') ? 'review' : 'dashboard')
+  const [view, setView] = useState<WorkspaceView>(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.has('review')) return 'review'
+    if (params.get('section') === 'promotions') return 'promotions'
+    return 'dashboard'
+  })
   const [activeReviewId, setActiveReviewId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('review'))
   const [template, setTemplate] = useState<ReviewTemplate | null>(null)
   const [llmEnabled, setLlmEnabled] = useState<boolean | null>(null)
@@ -651,7 +658,10 @@ export function WorkspaceApp() {
 
   function navigate(next: WorkspaceView) {
     setView(next)
-    if (next !== 'review') { setActiveReviewId(null); window.history.replaceState({}, '', window.location.pathname) }
+    if (next !== 'review') {
+      setActiveReviewId(null)
+      window.history.replaceState({}, '', next === 'promotions' ? `${window.location.pathname}?section=promotions` : window.location.pathname)
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -674,6 +684,7 @@ export function WorkspaceApp() {
   const page = (() => {
     if (view === 'dashboard') return <Dashboard data={data} onNew={startNew} onOpenReview={openReview} onNavigate={navigate} />
     if (view === 'reviews') return <ReviewsPage data={data} onNew={startNew} onOpen={openReview} />
+    if (view === 'promotions') return <PromotionRulesPage settings={data.settings} />
     if (view === 'clients') return <ClientsPage data={data} onChange={setData} />
     if (view === 'templates') return <TemplatesPage data={data} onChange={setData} onUse={startFromTemplate} />
     if (view === 'knowledge') return <KnowledgePage data={data} onChange={setData} />

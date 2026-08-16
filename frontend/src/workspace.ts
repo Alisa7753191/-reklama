@@ -4,6 +4,7 @@ import type { InputType, Report, RiskLevel } from './types'
 export type WorkspaceView =
   | 'dashboard'
   | 'reviews'
+  | 'promotions'
   | 'clients'
   | 'templates'
   | 'knowledge'
