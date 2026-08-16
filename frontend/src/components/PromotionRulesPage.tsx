@@ -17,7 +17,7 @@ import { ReportView } from './ReportView'
 type Mode = 'check' | 'compose'
 
 export function PromotionRulesPage({ settings }: { settings: WorkspaceSettings }) {
-  const [mode, setMode] = useState<Mode>('check')
+  const [mode, setMode] = useState<Mode>(() => new URLSearchParams(window.location.search).get('mode') === 'compose' ? 'compose' : 'check')
   const [rulesText, setRulesText] = useState('')
   const [draft, setDraft] = useState<PromotionDraft>(() => ({ ...EMPTY_PROMOTION_DRAFT, organizer: settings.legalName, organizerDetails: `ИНН ${settings.inn}` }))
   const [report, setReport] = useState<Report | null>(null)
