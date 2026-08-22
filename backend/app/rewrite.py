@@ -7,6 +7,7 @@ from typing import Iterable
 from .config import settings
 from .models import Finding, RewriteResponse
 from .rules.ethics import redact_ethics_violations
+from .rules.violence import redact_violence_violations
 
 _REPLACEMENTS = (
     (r"\bсам(?:ый|ая|ое|ые)\s+выгодн\w*\b", "с понятными условиями"),
@@ -23,6 +24,7 @@ _REPLACEMENTS = (
 
 def _fallback_rewrite(text: str, findings: Iterable[Finding]) -> RewriteResponse:
     rewritten, ethics_replacements = redact_ethics_violations(text.strip())
+    rewritten, violence_replacements = redact_violence_violations(rewritten)
     for pattern, replacement in _REPLACEMENTS:
         rewritten = re.sub(pattern, replacement, rewritten, flags=re.IGNORECASE)
 
@@ -44,6 +46,11 @@ def _fallback_rewrite(text: str, findings: Iterable[Finding]) -> RewriteResponse
         warnings.append(
             f"Бранные, непристойные или оскорбительные выражения заменены: "
             f"{ethics_replacements}. Вставьте нейтральные формулировки."
+        )
+    if violence_replacements:
+        warnings.append(
+            f"Фразы о насилии над людьми заменены: {violence_replacements}. "
+            f"Вставьте нейтральные формулировки."
         )
     return RewriteResponse(
         text=rewritten,
@@ -108,6 +115,7 @@ def create_safe_rewrite(
         rewritten = _claude_rewrite(text, findings, context)
         if rewritten:
             rewritten, ethics_replacements = redact_ethics_violations(rewritten)
+            rewritten, violence_replacements = redact_violence_violations(rewritten)
             warnings = [
                 "Редакция создана ИИ по найденным рискам. Проверьте фактические "
                 "сведения и запустите повторный юридический анализ."
@@ -116,6 +124,10 @@ def create_safe_rewrite(
                 warnings.append(
                     "Оставшиеся бранные, непристойные или оскорбительные выражения "
                     "заменены строгим фильтром."
+                )
+            if violence_replacements:
+                warnings.append(
+                    "Оставшиеся фразы о насилии над людьми заменены строгим фильтром."
                 )
             return RewriteResponse(
                 text=rewritten,

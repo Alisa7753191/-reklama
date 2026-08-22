@@ -69,6 +69,27 @@ def test_obscene_language_lists_every_word_to_remove():
     assert finding.mitigation[0].startswith("Удалите из рекламы:")
 
 
+def test_violence_euphemism_directed_at_people_is_blocked():
+    findings, _ = engine.analyze("Пиф паф людей — и никаких проблем")
+    finding = next(item for item in findings if item.id == "violence_or_cruelty_language")
+    assert finding.risk_level.value == "critical"
+    assert finding.title == "Удалите из рекламы: «Пиф паф людей»"
+    assert finding.mitigation[0] == "Удалите из рекламы: «Пиф паф людей»"
+    assert any(basis.article == "ст. 5, ч. 4" for basis in finding.legal_basis)
+
+
+def test_violence_filter_detects_variants_and_direct_calls():
+    assert "violence_or_cruelty_language" in _ids("Пиф-паф по людям")
+    assert "violence_or_cruelty_language" in _ids("Стреляй в людей")
+    assert "violence_or_cruelty_language" in _ids("Убей их всех")
+
+
+def test_violence_filter_respects_neutral_context_words():
+    assert "violence_or_cruelty_language" not in _ids("Игрушечный пистолет говорит пиф-паф")
+    assert "violence_or_cruelty_language" not in _ids("Средство убивает бактерии")
+    assert "violence_or_cruelty_language" not in _ids("Спортивная стрельба по мишеням")
+
+
 def test_guarantee_detected():
     assert "guarantee" in _ids("Стопроцентно вылечит любую болезнь без побочных")
 

@@ -13,6 +13,7 @@ from ..knowledge.loader import KnowledgeBase, get_knowledge
 from ..models import Finding, LegalBasis, Liability, Practice, RiskLevel
 from . import morphology
 from .ethics import find_ethics_violations
+from .violence import find_violence_violations
 
 
 def _snippet(text: str, match_start: int, match_len: int, radius: int = 40) -> str:
@@ -234,6 +235,19 @@ class RulesEngine:
                     seen_terms: set[str] = set()
                     for ethics_match in ethics_matches:
                         term = re.sub(r"\s+", " ", ethics_match.text).strip()
+                        key = term.casefold()
+                        if term and key not in seen_terms:
+                            seen_terms.add(key)
+                            removal_terms.append(term)
+                    evidence = "; ".join(removal_terms)
+
+            elif rtype == "violence_lexicon":
+                violence_matches = find_violence_violations(text)
+                if violence_matches:
+                    matched = True
+                    seen_terms: set[str] = set()
+                    for violence_match in violence_matches:
+                        term = re.sub(r"\s+", " ", violence_match.text).strip()
                         key = term.casefold()
                         if term and key not in seen_terms:
                             seen_terms.add(key)

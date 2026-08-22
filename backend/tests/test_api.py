@@ -56,6 +56,19 @@ def test_analyze_text_with_obscene_language_is_critical():
     assert finding["mitigation"][0] == "Удалите из рекламы: «жопа»"
 
 
+def test_analyze_text_with_violence_euphemism_is_critical():
+    resp = client.post(
+        "/api/analyze",
+        json={"input_type": "text", "text": "пиф паф людей"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["overall_risk"] == "critical"
+    finding = next(item for item in body["findings"] if item["id"] == "violence_or_cruelty_language")
+    assert finding["title"] == "Удалите из рекламы: «пиф паф людей»"
+    assert finding["legal_basis"][0]["article"] == "ст. 5, ч. 4"
+
+
 def test_analyze_empty_text_400():
     resp = client.post("/api/analyze", json={"input_type": "text", "text": "  "})
     assert resp.status_code == 400
@@ -195,3 +208,13 @@ def test_rewrite_removes_obscene_language():
     body = resp.json()
     assert "жоп" not in body["text"].lower()
     assert body["text"] == "У конкурентов полная [НЕЙТРАЛЬНАЯ ФОРМУЛИРОВКА]"
+
+
+def test_rewrite_removes_violence_euphemism():
+    resp = client.post(
+        "/api/rewrite",
+        json={"text": "пиф паф людей", "findings": []},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["text"] == "[НЕЙТРАЛЬНАЯ ФОРМУЛИРОВКА]"
