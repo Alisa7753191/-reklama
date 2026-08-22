@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Tuple
 from ..knowledge.loader import KnowledgeBase, get_knowledge
 from ..models import Finding, LegalBasis, Liability, Practice, RiskLevel
 from . import morphology
-from .ethics import find_ethics_violation
+from .ethics import find_ethics_violations
 
 
 def _snippet(text: str, match_start: int, match_len: int, radius: int = 40) -> str:
@@ -188,6 +188,7 @@ class RulesEngine:
             rtype = rule["type"]
             evidence: Optional[str] = None
             matched = False
+            removal_terms: List[str] = []
 
             if rtype == "lemma_any":
                 # Пропускаем короткие/числовые леммы, чтобы не ловить стоп-цифры
@@ -227,14 +228,17 @@ class RulesEngine:
                         break
 
             elif rtype == "ethics_lexicon":
-                ethics_match = find_ethics_violation(text)
-                if ethics_match:
+                ethics_matches = find_ethics_violations(text)
+                if ethics_matches:
                     matched = True
-                    evidence = _snippet(
-                        text,
-                        ethics_match.start,
-                        ethics_match.end - ethics_match.start,
-                    )
+                    seen_terms: set[str] = set()
+                    for ethics_match in ethics_matches:
+                        term = re.sub(r"\s+", " ", ethics_match.text).strip()
+                        key = term.casefold()
+                        if term and key not in seen_terms:
+                            seen_terms.add(key)
+                            removal_terms.append(term)
+                    evidence = "; ".join(removal_terms)
 
             elif rtype == "morph_comparative":
                 # Сравнительная степень (активнее, сильнее, лучше…) — по морфологии;
@@ -274,17 +278,28 @@ class RulesEngine:
                     evidence = _snippet(text, idx, len(trig)) if idx >= 0 else None
 
             if matched:
+                finding_title = rule["title"]
+                finding_description = rule["description"]
+                finding_mitigation = list(rule.get("mitigation", []))
+                if removal_terms:
+                    quoted_terms = ", ".join(f"«{term}»" for term in removal_terms)
+                    finding_title = f"Удалите из рекламы: {quoted_terms}"
+                    finding_description = (
+                        f"Конкретные выражения, которые нельзя оставлять в материале: "
+                        f"{quoted_terms}. {finding_description}"
+                    )
+                    finding_mitigation.insert(0, f"Удалите из рекламы: {quoted_terms}")
                 findings.append(
                     self._build_finding(
                         finding_id=rule_id,
                         category=rule_id,
-                        title=rule["title"],
-                        description=rule["description"],
+                        title=finding_title,
+                        description=finding_description,
                         risk_level=rule["risk_level"],
                         law_refs=rule.get("law_refs", []),
                         liability_refs=rule.get("liability_refs", []),
                         practice_refs=rule.get("practice_refs", []),
-                        mitigation=rule.get("mitigation", []),
+                        mitigation=finding_mitigation,
                         evidence=evidence,
                     )
                 )

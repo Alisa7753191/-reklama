@@ -52,6 +52,8 @@ def test_analyze_text_with_obscene_language_is_critical():
     assert body["overall_risk"] == "critical"
     finding = next(item for item in body["findings"] if item["id"] == "obscene_or_offensive_language")
     assert finding["legal_basis"][0]["article"] == "ст. 5, ч. 6"
+    assert finding["title"] == "Удалите из рекламы: «жопа»"
+    assert finding["mitigation"][0] == "Удалите из рекламы: «жопа»"
 
 
 def test_analyze_empty_text_400():

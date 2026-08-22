@@ -59,6 +59,16 @@ def test_obscene_language_finding_is_critical_and_cites_part_6():
     assert finding.liability is not None
 
 
+def test_obscene_language_lists_every_word_to_remove():
+    findings, _ = engine.analyze("Жопа в прошлом, не будь идиотом — никакой х*у*йни")
+    finding = next(item for item in findings if item.id == "obscene_or_offensive_language")
+    for term in ("жопа", "идиотом", "х*у*йни"):
+        assert term in finding.title.lower()
+        assert term in finding.description.lower()
+        assert term in finding.mitigation[0].lower()
+    assert finding.mitigation[0].startswith("Удалите из рекламы:")
+
+
 def test_guarantee_detected():
     assert "guarantee" in _ids("Стопроцентно вылечит любую болезнь без побочных")
 

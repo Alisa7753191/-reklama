@@ -140,6 +140,28 @@ def find_ethics_violation(text: str) -> EthicsMatch | None:
     return None
 
 
+def find_ethics_violations(text: str, limit: int = 20) -> list[EthicsMatch]:
+    """Найти все отдельные выражения, сохранив их исходное написание и порядок."""
+    working = text
+    matches: list[EthicsMatch] = []
+    while len(matches) < limit:
+        match = find_ethics_violation(working)
+        if not match:
+            break
+        matches.append(
+            EthicsMatch(
+                text=text[match.start:match.end],
+                start=match.start,
+                end=match.end,
+                kind=match.kind,
+            )
+        )
+        # Маскируем фрагмент пробелами той же длины: индексы следующих совпадений
+        # останутся индексами исходного рекламного текста.
+        working = f"{working[:match.start]}{' ' * (match.end - match.start)}{working[match.end:]}"
+    return matches
+
+
 def redact_ethics_violations(text: str, limit: int = 50) -> tuple[str, int]:
     """Заменить найденные выражения нейтральным маркером для черновика правок."""
     result = text
