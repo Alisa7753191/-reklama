@@ -27,6 +27,9 @@ class InputType(str, Enum):
     text = "text"
     url = "url"
     image = "image"
+    document = "document"
+    audio = "audio"
+    video = "video"
 
 
 class Channel(str, Enum):
@@ -112,3 +115,16 @@ class Report(BaseModel):
     extracted_text: str = ""
     disclaimer: str
     meta: ReportMeta
+
+
+class RewriteRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=60000)
+    findings: List[Finding] = Field(default_factory=list, max_length=100)
+    company_description: Optional[str] = Field(default=None, max_length=2000)
+    product_description: Optional[str] = Field(default=None, max_length=2000)
+
+
+class RewriteResponse(BaseModel):
+    text: str
+    mode: str = Field(description="claude | rules")
+    warnings: List[str] = Field(default_factory=list)

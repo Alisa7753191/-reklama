@@ -27,6 +27,8 @@ export function exportReviewToWord(review: ReviewMatter, settings: WorkspaceSett
       <ul>${finding.mitigation.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>
     </section>
   `).join('')
+  const materials = (review.materials ?? []).map((item, index) => `<li>${index + 1}. ${escapeHtml(item.label)} — ${escapeHtml(item.role)}</li>`).join('')
+  const comments = review.comments.map((item) => `<li><strong>${escapeHtml(item.author)}:</strong> ${item.quote ? `«${escapeHtml(item.quote)}» — ` : ''}${item.region ? `[Область изображения: ${escapeHtml(item.region.materialLabel)}] ` : ''}${escapeHtml(item.text)}</li>`).join('')
 
   const html = `<!doctype html>
   <html lang="ru"><head><meta charset="utf-8"><title>${escapeHtml(settings.reportTitle)}</title>
@@ -48,8 +50,10 @@ export function exportReviewToWord(review: ReviewMatter, settings: WorkspaceSett
       <p><strong>Категории:</strong> ${escapeHtml(report.detected_categories.map((item) => CATEGORY_LABEL[item] ?? item).join(', ') || 'Не определены')}</p>
       <p><strong>Итоговый риск:</strong> ${escapeHtml(report.overall_risk)}</p>
     </div>
+    ${materials ? `<h2>Материалы кампании</h2><ol>${materials}</ol>` : ''}
     <p>${escapeHtml(report.summary)}</p>
     ${findings || '<p>Явных правовых рисков автоматически не обнаружено.</p>'}
+    ${comments ? `<h2>Комментарии команды</h2><ul>${comments}</ul>` : ''}
     <div class="footer">
       <p><strong>Проверил:</strong> ${escapeHtml(review.reviewer || settings.signatory)}</p>
       <p>${escapeHtml(report.disclaimer)}</p>

@@ -11,3 +11,4 @@ pymorphy3-dicts-ru==2.4.417150.4580142
 # OCR-запасной вариант (нужен системный пакет tesseract-ocr):
 pytesseract==0.3.13
 Pillow==11.0.0
+pypdf==6.16.1

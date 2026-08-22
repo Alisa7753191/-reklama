@@ -1,4 +1,4 @@
-import type { AnalysisContext, Report } from './types'
+import type { AnalysisContext, Finding, Report } from './types'
 
 export type Channel = 'internet' | 'sms' | 'email' | 'tv' | 'radio' | 'print' | 'outdoor'
 
@@ -85,6 +85,56 @@ export async function analyzeImage(
     method: 'POST',
     body: form,
   }, IMAGE_TIMEOUT_MS)
+}
+
+export async function analyzeFile(
+  file: File,
+  materialRole: string,
+  transcript = '',
+  channel: Channel = 'internet',
+  context?: AnalysisContext,
+): Promise<Report> {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('channel', channel)
+  form.append('material_role', materialRole)
+  if (transcript.trim()) form.append('transcript', transcript.trim())
+  if (context?.company_description) form.append('company_description', context.company_description)
+  if (context?.product_description) form.append('product_description', context.product_description)
+  return fetchReport(`${BASE}/analyze/file`, {
+    method: 'POST',
+    body: form,
+  }, IMAGE_TIMEOUT_MS)
+}
+
+export async function createSafeRewrite(
+  text: string,
+  findings: Finding[],
+  context?: AnalysisContext,
+): Promise<{ text: string; mode: 'claude' | 'rules'; warnings: string[] }> {
+  const controller = new AbortController()
+  const timer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  try {
+    const response = await fetch(`${BASE}/rewrite`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, findings, ...context }),
+      signal: controller.signal,
+    })
+    if (!response.ok) {
+      let detail = `Ошибка ${response.status}`
+      try { detail = (await response.json())?.detail || detail } catch { /* ignore */ }
+      throw new Error(detail)
+    }
+    return response.json()
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('Создание редакции заняло слишком много времени. Попробуйте ещё раз.')
+    }
+    throw error
+  } finally {
+    window.clearTimeout(timer)
+  }
 }
 
 export async function getHealth(): Promise<{ llm_enabled: boolean; llm_provider: string | null }> {

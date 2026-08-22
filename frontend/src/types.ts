@@ -1,5 +1,5 @@
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
-export type InputType = 'text' | 'url' | 'image'
+export type InputType = 'text' | 'url' | 'image' | 'document' | 'audio' | 'video'
 
 export interface AnalysisContext {
   company_description: string

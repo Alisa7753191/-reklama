@@ -1,4 +1,7 @@
 """Тесты HTTP-эндпоинтов через FastAPI TestClient."""
+import io
+import zipfile
+
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -111,3 +114,59 @@ def test_image_split_text_visual_keeps_marking_out_of_engine():
     assert text.startswith("Вклад 20% годовых")
     assert "erid" in visual.lower()
     assert not visual.lower().startswith("визуал")
+
+
+def test_analyze_docx_extracts_ad_text():
+    payload = io.BytesIO()
+    with zipfile.ZipFile(payload, "w") as archive:
+        archive.writestr(
+            "word/document.xml",
+            '<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>Лучший банк для бизнеса</w:t></w:r></w:p></w:body></w:document>',
+        )
+    resp = client.post(
+        "/api/analyze/file",
+        files={"file": ("advert.docx", payload.getvalue(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+        data={"material_role": "creative"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["meta"]["input_type"] == "document"
+    assert "Лучший банк" in body["extracted_text"]
+    assert any(item["id"] == "superlative" for item in body["findings"])
+
+
+def test_analyze_audio_uses_supplied_transcript():
+    resp = client.post(
+        "/api/analyze/file",
+        files={"file": ("radio.mp3", b"fake-audio", "audio/mpeg")},
+        data={"transcript": "Лучший банк для бизнеса", "material_role": "script"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["meta"]["input_type"] == "audio"
+    assert "сценарий/транскрипт" in " ".join(body["meta"]["warnings"])
+
+
+def test_analyze_video_requires_transcript():
+    resp = client.post(
+        "/api/analyze/file",
+        files={"file": ("spot.mp4", b"fake-video", "video/mp4")},
+    )
+    assert resp.status_code == 422
+    assert "сценарий" in resp.json()["detail"]
+
+
+def test_rewrite_returns_editable_draft_without_llm():
+    resp = client.post(
+        "/api/rewrite",
+        json={
+            "text": "Лучший банк. Гарантированный доход.",
+            "findings": [],
+            "company_description": "Банк",
+            "product_description": "Вклад",
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["mode"] in {"rules", "claude"}
+    assert body["text"].strip()

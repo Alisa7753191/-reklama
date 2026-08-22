@@ -1,0 +1,6 @@
+import type { WorkspaceNotification } from '../workspaceNotifications'
+import type { WorkspaceView } from '../workspace'
+
+export function NotificationsDrawer({ items, onClose, onOpenReview, onNavigate }: { items: WorkspaceNotification[]; onClose: () => void; onOpenReview: (id: string) => void; onNavigate: (view: WorkspaceView) => void }) {
+  return <div className="notification-layer" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><aside className="notification-drawer" role="dialog" aria-modal="true" aria-label="Уведомления"><header><div><p className="eyebrow">ЦЕНТР ЗАДАЧ</p><h2>Уведомления</h2></div><button type="button" onClick={onClose} aria-label="Закрыть">×</button></header>{items.length === 0 ? <div className="notification-empty">Новых задач и приближающихся сроков нет.</div> : <div className="notification-list">{items.map((item) => <button key={item.id} type="button" onClick={() => { if (item.reviewId) onOpenReview(item.reviewId); else if (item.view) onNavigate(item.view); onClose() }}><i className={`tone-${item.tone}`} /><span><b>{item.title}</b><small>{item.text}</small></span><em>→</em></button>)}</div>}<footer>Уведомления формируются по назначениям, срокам публикации и мониторингу.</footer></aside></div>
+}

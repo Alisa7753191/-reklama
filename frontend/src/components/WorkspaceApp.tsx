@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
-import { analyzeImage, analyzeText, analyzeUrl, getHealth, type Channel } from '../api'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { analyzeFile, analyzeImage, analyzeText, analyzeUrl, createSafeRewrite, getHealth, type Channel } from '../api'
 import {
   describeBatchMaterial,
+  isFileMaterial,
   mergeBatchReports,
   type BatchAnalysisFailure,
   type BatchAnalysisResult,
@@ -11,7 +12,9 @@ import {
 import { CHANNEL_LABEL, RISK_LABEL } from '../labels'
 import { downloadKnowledgeDocument, formatDocumentSize, saveKnowledgeDocument } from '../knowledgeDocumentStorage'
 import { exportReviewToWord } from '../reportExport'
+import { saveReviewMaterial } from '../reviewMaterialStorage'
 import type { AnalysisContext, Report } from '../types'
+import { getWorkspaceNotifications } from '../workspaceNotifications'
 import {
   STATUS_LABEL,
   STATUS_TONE,
@@ -21,6 +24,7 @@ import {
   nextReviewNumber,
   saveWorkspace,
   type Client,
+  type CommentRegion,
   type KnowledgeEntry,
   type ReviewMatter,
   type ReviewStatus,
@@ -31,8 +35,13 @@ import {
   type WorkspaceView,
 } from '../workspace'
 import { InputPanel } from './InputPanel'
+import { CampaignMaterialsPanel } from './CampaignMaterialsPanel'
+import { IntegrationsPage } from './IntegrationsPage'
+import { MonitoringPage } from './MonitoringPage'
+import { NotificationsDrawer } from './NotificationsDrawer'
 import { PromotionRulesPage } from './PromotionRulesPage'
 import { ReportView } from './ReportView'
+import { RevisionComparison } from './RevisionComparison'
 
 const NAV_ITEMS: { id: WorkspaceView; label: string; short: string }[] = [
   { id: 'dashboard', label: 'Обзор', short: 'ОБ' },
@@ -43,6 +52,8 @@ const NAV_ITEMS: { id: WorkspaceView; label: string; short: string }[] = [
   { id: 'knowledge', label: 'База знаний', short: 'БЗ' },
   { id: 'team', label: 'Команда', short: 'КО' },
   { id: 'analytics', label: 'Аналитика', short: 'АН' },
+  { id: 'monitoring', label: 'Мониторинг', short: 'МН' },
+  { id: 'integrations', label: 'Интеграции', short: 'API' },
   { id: 'settings', label: 'Настройки', short: 'НС' },
 ]
 
@@ -525,7 +536,8 @@ function NewReviewPage({ data, initialTemplate, onCancel, onCreated }: { data: W
           let report: Report
           if (material.type === 'text') report = await analyzeText(material.text, draft.channel, context)
           else if (material.type === 'url') report = await analyzeUrl(material.url, draft.channel, context)
-          else report = await analyzeImage(material.file, draft.channel, context)
+          else if (material.type === 'image') report = await analyzeImage(material.file, draft.channel, context)
+          else report = await analyzeFile(material.file, material.role, material.type === 'audio' || material.type === 'video' ? material.transcript : '', draft.channel, context)
           successes.push({ material, index, report })
         } catch (caught) {
           failures.push({
@@ -542,8 +554,23 @@ function NewReviewPage({ data, initialTemplate, onCancel, onCreated }: { data: W
 
       const report = mergeBatchReports(successes, failures, draft.channel, context)
       const now = new Date().toISOString()
+      const reviewMaterials = await Promise.all(materials.map(async (material) => {
+        if (!isFileMaterial(material)) {
+          return material.type === 'text'
+            ? { id: material.id, label: material.label, type: material.type, role: material.role, text: material.text }
+            : { id: material.id, label: material.label, type: material.type, role: material.role, url: material.url }
+        }
+        const storageId = createId('asset')
+        try {
+          await saveReviewMaterial(storageId, material.file)
+          return { id: material.id, label: material.label, type: material.type, role: material.role, contentType: material.file.type, size: material.file.size, storageId }
+        } catch {
+          report.meta.warnings.push(`${material.label}: исходный файл не удалось сохранить в локальном хранилище браузера.`)
+          return { id: material.id, label: material.label, type: material.type, role: material.role, contentType: material.file.type, size: material.file.size }
+        }
+      }))
       const typeNames = Array.from(new Set(materials.map((material) => (
-        material.type === 'text' ? 'текст' : material.type === 'url' ? 'лендинг' : 'изображение'
+        material.type === 'text' ? 'текст' : material.type === 'url' ? 'лендинг' : material.type === 'image' ? 'изображение' : material.type === 'document' ? 'документ' : material.type === 'audio' ? 'аудио' : 'видео'
       ))))
       const review: ReviewMatter = {
         id: createId('review'),
@@ -557,6 +584,7 @@ function NewReviewPage({ data, initialTemplate, onCancel, onCreated }: { data: W
         },
         materialType: materials[0].type,
         materialLabel: materials.length === 1 ? materials[0].label : `Пакет: ${materials.length} материалов · ${typeNames.join(', ')}`,
+        materials: reviewMaterials,
         report,
         versions: [{ id: createId('version'), number: 1, createdAt: now, text: report.extracted_text, overallRisk: report.overall_risk, findingsCount: report.findings.length }],
         comments: [],
@@ -572,7 +600,7 @@ function NewReviewPage({ data, initialTemplate, onCancel, onCreated }: { data: W
 
   return (
     <>
-      <PageHeader eyebrow={`НОВАЯ ПРОВЕРКА · ШАГ ${step} ИЗ 2`} title={step === 1 ? 'Контекст рекламного материала' : 'Добавьте материалы'} description={step === 1 ? 'Заполните данные, которые влияют на юридическую оценку.' : 'Соберите в один пакет тексты, ссылки и изображения. Система сформирует единый черновик для юриста.'} action={<button className="btn btn--secondary" onClick={onCancel}>Отменить</button>} />
+      <PageHeader eyebrow={`НОВАЯ ПРОВЕРКА · ШАГ ${step} ИЗ 2`} title={step === 1 ? 'Контекст рекламного материала' : 'Добавьте материалы'} description={step === 1 ? 'Заполните данные, которые влияют на юридическую оценку.' : 'Соберите кампанию из текстов, ссылок, изображений, документов, презентаций, аудио и видео.'} action={<button className="btn btn--secondary" onClick={onCancel}>Отменить</button>} />
       <div className="review-progress"><span className={step >= 1 ? 'active' : ''}>01 Контекст</span><i /><span className={step >= 2 ? 'active' : ''}>02 Материал и анализ</span></div>
       {step === 1 ? (
         <section className="workspace-card intake-card">
@@ -605,29 +633,49 @@ function NewReviewPage({ data, initialTemplate, onCancel, onCreated }: { data: W
   )
 }
 
-function ReviewPage({ review, client, settings, onBack, onUpdate }: { review: ReviewMatter; client: Client | undefined; settings: WorkspaceSettings; onBack: () => void; onUpdate: (review: ReviewMatter) => void }) {
+function ReviewPage({ review, client, settings, team, onBack, onUpdate }: { review: ReviewMatter; client: Client | undefined; settings: WorkspaceSettings; team: TeamMember[]; onBack: () => void; onUpdate: (review: ReviewMatter) => void }) {
   const [comment, setComment] = useState('')
+  const [commentQuote, setCommentQuote] = useState('')
+  const [commentRegion, setCommentRegion] = useState<CommentRegion | undefined>()
   const [revisionText, setRevisionText] = useState(review.report?.extracted_text ?? '')
   const [rechecking, setRechecking] = useState(false)
+  const [generating, setGenerating] = useState(false)
   const [error, setError] = useState('')
   const [exportNotice, setExportNotice] = useState('')
   const [revisionNotice, setRevisionNotice] = useState('')
+  const textRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     setRevisionText(review.report?.extracted_text ?? review.versions[review.versions.length - 1]?.text ?? '')
-    setError('')
-    setRevisionNotice('')
+    setError(''); setRevisionNotice(''); setCommentQuote(''); setCommentRegion(undefined)
   }, [review.id])
 
   function changeStatus(status: ReviewStatus) {
-    onUpdate({ ...review, status, reviewer: status === 'approved' ? settings.signatory : review.reviewer, updatedAt: new Date().toISOString() })
+    onUpdate({ ...review, status, reviewer: status === 'approved' ? settings.signatory.split(',')[0].trim() : review.reviewer, updatedAt: new Date().toISOString() })
+  }
+
+  function captureTextSelection() {
+    const field = textRef.current
+    if (!field || field.selectionStart === field.selectionEnd) return
+    const quote = field.value.slice(field.selectionStart, field.selectionEnd).trim()
+    if (quote) { setCommentQuote(quote.slice(0, 500)); setCommentRegion(undefined) }
   }
 
   function addComment(event: React.FormEvent) {
     event.preventDefault()
     if (!comment.trim()) return
-    onUpdate({ ...review, comments: [...review.comments, { id: createId('comment'), author: settings.signatory.split(',')[0], text: comment.trim(), createdAt: new Date().toISOString() }], updatedAt: new Date().toISOString() })
-    setComment('')
+    onUpdate({ ...review, comments: [...review.comments, { id: createId('comment'), author: settings.signatory.split(',')[0], text: comment.trim(), quote: commentQuote || undefined, region: commentRegion, createdAt: new Date().toISOString() }], updatedAt: new Date().toISOString() })
+    setComment(''); setCommentQuote(''); setCommentRegion(undefined)
+  }
+
+  async function generateRewrite() {
+    if (!revisionText.trim() || !review.report) return
+    setGenerating(true); setError(''); setRevisionNotice('')
+    try {
+      const result = await createSafeRewrite(revisionText, review.report.findings, { company_description: review.context.company, product_description: review.context.product })
+      setRevisionText(result.text)
+      setRevisionNotice(`Подготовлена осторожная редакция (${result.mode === 'claude' ? 'смысловой анализ' : 'движок правил'}). ${result.warnings.join(' ')}`)
+    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Не удалось создать редакцию.') } finally { setGenerating(false) }
   }
 
   async function analyzeRevision() {
@@ -642,41 +690,21 @@ function ReviewPage({ review, client, settings, onBack, onUpdate }: { review: Re
     } catch (caught) { setError(caught instanceof Error ? caught.message : 'Не удалось проверить новую редакцию.') } finally { setRechecking(false) }
   }
 
-  return (
-    <>
-      <div className="review-detail-head">
-        <button className="back-link" onClick={onBack}>← Все проверки</button>
-        <div><span>{review.number}</span><h1>{review.title}</h1><p>{client?.name ?? 'Без клиента'} · обновлено {formatDate(review.updatedAt)}</p></div>
-        <div className="review-detail-actions"><StatusBadge status={review.status} /><button className="btn btn--secondary" disabled={!review.report} onClick={() => { setExportNotice('Открыто окно печати — выберите «Сохранить как PDF».'); window.print() }}>PDF</button><button className="btn btn--secondary" disabled={!review.report} onClick={() => { exportReviewToWord(review, settings); setExportNotice('Заключение Word подготовлено к скачиванию.') }}>Word</button>{review.status !== 'approved' && <button className="btn btn--primary" disabled={!review.report} onClick={() => changeStatus('approved')}>✓ Согласовать</button>}</div>
-      </div>
-
-      {exportNotice && <div className="export-notice" role="status">✓ {exportNotice}<button onClick={() => setExportNotice('')}>×</button></div>}
-
-      <div className="matter-meta-grid">
-        <div><span>КОМПАНИЯ</span><p>{review.context.company}</p></div><div><span>ПРОДУКТ</span><p>{review.context.product}</p></div><div><span>АУДИТОРИЯ</span><p>{review.context.audience}</p></div><div><span>КАНАЛ</span><p>{CHANNEL_LABEL[review.context.channel]}</p></div>
-      </div>
-
-      <div className="review-workbench">
-        <main>
-          {review.report && <section className="persistent-ad-editor" id="ad-text-editor">
-            <header><div><p className="eyebrow">РЕДАКТОР РЕКЛАМНОГО ТЕКСТА</p><h2>Исправляйте текст, не закрывая риски</h2><p>Внесите изменения и запустите повторную проверку — отчёт ниже обновится, а предыдущая версия сохранится в истории.</p></div><span>v{review.versions.length}</span></header>
-            <textarea className="textarea" value={revisionText} onChange={(event) => { setRevisionText(event.target.value); setRevisionNotice(''); setError('') }} disabled={rechecking} maxLength={20_000} aria-label="Рекламный текст для исправления" />
-            <footer><span>{revisionText.length.toLocaleString('ru-RU')} / 20 000</span><div><button className="btn btn--secondary" disabled={rechecking} onClick={() => { setRevisionText(review.report?.extracted_text ?? ''); setRevisionNotice(''); setError('') }}>Вернуть текущую версию</button><button className="btn btn--primary" disabled={rechecking || !revisionText.trim()} onClick={analyzeRevision}>{rechecking ? 'Проверяем…' : 'Проверить исправления'}</button></div></footer>
-            {revisionNotice && <div className="editor-success" role="status">✓ {revisionNotice}</div>}
-            {error && <div className="error" role="alert">{error}</div>}
-          </section>}
-          {!review.report ? (
-            <div className="workspace-card no-report"><span>ЧЕРНОВИК ДЕЛА</span><h2>Автоматический отчёт ещё не сохранён</h2><p>Создайте новую проверку материала, чтобы получить подробные замечания и заключение.</p></div>
-          ) : <ReportView report={review.report} />}
-        </main>
-        <aside className="review-sidebar">
-          <section className="workspace-card review-control"><span>РЕШЕНИЕ ЮРИСТА</span><h2>Статус дела</h2><select value={review.status} onChange={(event) => changeStatus(event.target.value as ReviewStatus)}>{STATUS_ORDER.map((status) => <option key={status} value={status}>{STATUS_LABEL[status]}</option>)}</select>{review.reviewer && <p className="reviewer-line">✓ {review.reviewer}</p>}</section>
-          <section className="workspace-card"><div className="section-head"><div><span>ВЕРСИИ</span><h2>История материала</h2></div><b>{review.versions.length}</b></div><div className="version-list">{review.versions.map((version) => <div key={version.id}><b>v{version.number}</b><p>{RISK_LABEL[version.overallRisk]} риск · {version.findingsCount} замечаний</p><small>{formatDate(version.createdAt)}</small></div>)}</div>{review.report && <button className="btn btn--secondary btn--full" onClick={() => document.getElementById('ad-text-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>↑ К редактору текста</button>}</section>
-          <section className="workspace-card"><span>КОММЕНТАРИИ</span><h2>Обсуждение</h2><div className="comment-list">{review.comments.map((item) => <div key={item.id}><b>{item.author}</b><p>{item.text}</p><small>{formatDate(item.createdAt)}</small></div>)}{review.comments.length === 0 && <p className="muted-empty">Комментариев пока нет.</p>}</div><form className="comment-form" onSubmit={addComment}><textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Комментарий для команды…" /><button className="btn btn--primary" disabled={!comment.trim()}>Добавить</button></form></section>
-        </aside>
-      </div>
-    </>
-  )
+  return <>
+    <div className="review-detail-head"><button className="back-link" onClick={onBack}>← Все проверки</button><div><span>{review.number}</span><h1>{review.title}</h1><p>{client?.name ?? 'Без клиента'} · обновлено {formatDate(review.updatedAt)}</p></div><div className="review-detail-actions"><StatusBadge status={review.status} /><button className="btn btn--secondary" disabled={!review.report} onClick={() => { setExportNotice('Открыто окно печати — выберите «Сохранить как PDF».'); window.print() }}>PDF</button><button className="btn btn--secondary" disabled={!review.report} onClick={() => { exportReviewToWord(review, settings); setExportNotice('Заключение Word подготовлено к скачиванию.') }}>Word</button>{review.status !== 'approved' && <button className="btn btn--primary" disabled={!review.report} onClick={() => changeStatus('approved')}>✓ Согласовать</button>}</div></div>
+    {exportNotice && <div className="export-notice" role="status">✓ {exportNotice}<button onClick={() => setExportNotice('')}>×</button></div>}
+    <div className="matter-meta-grid"><div><span>КОМПАНИЯ</span><p>{review.context.company}</p></div><div><span>ПРОДУКТ</span><p>{review.context.product}</p></div><div><span>АУДИТОРИЯ</span><p>{review.context.audience}</p></div><div><span>КАНАЛ</span><p>{CHANNEL_LABEL[review.context.channel]}</p></div></div>
+    <div className="review-workbench"><main>
+      <CampaignMaterialsPanel materials={review.materials ?? []} comments={review.comments} selectedRegion={commentRegion} onSelectRegion={(region) => { setCommentRegion(region); if (region) setCommentQuote('') }} />
+      {review.report && <section className="persistent-ad-editor" id="ad-text-editor"><header><div><p className="eyebrow">РЕДАКТОР РЕКЛАМНОГО ТЕКСТА</p><h2>Исправляйте текст, не закрывая риски</h2><p>Выделите фразу для адресного комментария или создайте осторожную редакцию по найденным замечаниям.</p></div><span>v{review.versions.length}</span></header><textarea ref={textRef} className="textarea" value={revisionText} onSelect={captureTextSelection} onChange={(event) => { setRevisionText(event.target.value); setRevisionNotice(''); setError('') }} disabled={rechecking || generating} maxLength={60_000} aria-label="Рекламный текст для исправления" /><footer><span>{revisionText.length.toLocaleString('ru-RU')} / 60 000</span><div><button className="btn btn--secondary" disabled={rechecking || generating || !review.report.findings.length} onClick={generateRewrite}>{generating ? 'Создаю…' : '✦ Безопасная редакция'}</button><button className="btn btn--secondary" disabled={rechecking || generating} onClick={() => { setRevisionText(review.report?.extracted_text ?? ''); setRevisionNotice(''); setError('') }}>Вернуть версию</button><button className="btn btn--primary" disabled={rechecking || generating || !revisionText.trim()} onClick={analyzeRevision}>{rechecking ? 'Проверяем…' : 'Проверить исправления'}</button></div></footer>{commentQuote && <div className="editor-selection">Выбрано для комментария: «{commentQuote}» <button type="button" onClick={() => setCommentQuote('')}>×</button></div>}{revisionNotice && <div className="editor-success" role="status">✓ {revisionNotice}</div>}{error && <div className="error" role="alert">{error}</div>}</section>}
+      {review.report && review.versions.length > 0 && <RevisionComparison versions={review.versions} currentText={revisionText} />}
+      {!review.report ? <div className="workspace-card no-report"><span>ЧЕРНОВИК ДЕЛА</span><h2>Автоматический отчёт ещё не сохранён</h2><p>Создайте новую проверку материала, чтобы получить подробные замечания и заключение.</p></div> : <ReportView report={review.report} />}
+    </main><aside className="review-sidebar">
+      <section className="workspace-card review-control"><span>РЕШЕНИЕ ЮРИСТА</span><h2>Статус и ответственный</h2><label>Статус<select value={review.status} onChange={(event) => changeStatus(event.target.value as ReviewStatus)}>{STATUS_ORDER.map((status) => <option key={status} value={status}>{STATUS_LABEL[status]}</option>)}</select></label><label>Юрист<select value={review.reviewer ?? ''} onChange={(event) => onUpdate({ ...review, reviewer: event.target.value || null, updatedAt: new Date().toISOString() })}><option value="">Не назначен</option>{team.filter((member) => member.active).map((member) => <option key={member.id} value={member.name}>{member.name}</option>)}</select></label>{review.reviewer && <p className="reviewer-line">✓ {review.reviewer}</p>}</section>
+      <section className="workspace-card"><div className="section-head"><div><span>ВЕРСИИ</span><h2>История материала</h2></div><b>{review.versions.length}</b></div><div className="version-list">{review.versions.map((version) => <div key={version.id}><b>v{version.number}</b><p>{RISK_LABEL[version.overallRisk]} риск · {version.findingsCount} замечаний</p><small>{formatDate(version.createdAt)}</small></div>)}</div>{review.report && <button className="btn btn--secondary btn--full" onClick={() => document.getElementById('ad-text-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>↑ К редактору текста</button>}</section>
+      <section className="workspace-card"><span>КОММЕНТАРИИ</span><h2>Обсуждение</h2><div className="comment-list">{review.comments.map((item) => <div key={item.id}><b>{item.author}</b>{item.quote && <blockquote>«{item.quote}»</blockquote>}{item.region && <blockquote>Область изображения: {item.region.materialLabel}</blockquote>}<p>{item.text}</p><small>{formatDate(item.createdAt)}</small></div>)}{review.comments.length === 0 && <p className="muted-empty">Комментариев пока нет.</p>}</div><form className="comment-form" onSubmit={addComment}>{(commentQuote || commentRegion) && <div className="comment-target"><b>{commentQuote ? 'Фраза' : 'Область изображения'}</b><span>{commentQuote || commentRegion?.materialLabel}</span><button type="button" onClick={() => { setCommentQuote(''); setCommentRegion(undefined) }}>×</button></div>}<textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Комментарий для команды…" /><button className="btn btn--primary" disabled={!comment.trim()}>Добавить</button></form></section>
+    </aside></div>
+  </>
 }
 
 export function WorkspaceApp() {
@@ -684,12 +712,15 @@ export function WorkspaceApp() {
   const [view, setView] = useState<WorkspaceView>(() => {
     const params = new URLSearchParams(window.location.search)
     if (params.has('review')) return 'review'
-    if (params.get('section') === 'promotions') return 'promotions'
+    const section = params.get('section') as WorkspaceView | null
+    if (section && ['promotions', 'monitoring', 'integrations', 'new-review', 'reviews'].includes(section)) return section
     return 'dashboard'
   })
   const [activeReviewId, setActiveReviewId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('review'))
   const [template, setTemplate] = useState<ReviewTemplate | null>(null)
   const [llmEnabled, setLlmEnabled] = useState<boolean | null>(null)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const notifications = useMemo(() => getWorkspaceNotifications(data), [data])
 
   useEffect(() => { saveWorkspace(data); document.documentElement.style.setProperty('--primary', data.settings.accent) }, [data])
   useEffect(() => { getHealth().then((result) => setLlmEnabled(result.llm_enabled)).catch(() => setLlmEnabled(null)) }, [])
@@ -698,7 +729,7 @@ export function WorkspaceApp() {
     setView(next)
     if (next !== 'review') {
       setActiveReviewId(null)
-      window.history.replaceState({}, '', next === 'promotions' ? `${window.location.pathname}?section=promotions` : window.location.pathname)
+      window.history.replaceState({}, '', next === 'dashboard' ? window.location.pathname : `${window.location.pathname}?section=${encodeURIComponent(next)}`)
     }
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -728,9 +759,11 @@ export function WorkspaceApp() {
     if (view === 'knowledge') return <KnowledgePage data={data} onChange={setData} />
     if (view === 'team') return <TeamPage data={data} onChange={setData} />
     if (view === 'analytics') return <AnalyticsPage data={data} />
+    if (view === 'monitoring') return <MonitoringPage data={data} onChange={setData} />
+    if (view === 'integrations') return <IntegrationsPage />
     if (view === 'settings') return <SettingsPage data={data} onChange={setData} />
     if (view === 'new-review') return <NewReviewPage key={template?.id ?? 'blank'} data={data} initialTemplate={template} onCancel={() => navigate('dashboard')} onCreated={createReview} />
-    if (view === 'review' && activeReview) return <ReviewPage review={activeReview} client={data.clients.find((client) => client.id === activeReview.clientId)} settings={data.settings} onBack={() => navigate('reviews')} onUpdate={updateReview} />
+    if (view === 'review' && activeReview) return <ReviewPage key={activeReview.id} review={activeReview} client={data.clients.find((client) => client.id === activeReview.clientId)} settings={data.settings} team={data.team} onBack={() => navigate('reviews')} onUpdate={updateReview} />
     return <Dashboard data={data} onNew={startNew} onOpenReview={openReview} onNavigate={navigate} />
   })()
 
@@ -742,10 +775,11 @@ export function WorkspaceApp() {
         <div className="workspace-nav__bottom"><div className="system-status"><i /><span><b>Система работает</b><small>{llmEnabled ? 'Правила + ИИ-анализ' : 'Движок правовых правил'}</small></span></div><div className="user-card"><span>{ADMINISTRATOR_INITIALS}</span><div><b>{ADMINISTRATOR_NAME}</b><small>Администратор</small></div></div></div>
       </aside>
       <div className="workspace-main">
-        <header className="workspace-topbar"><div><span className="workspace-topbar__dot" />Защищённое рабочее пространство</div><button className="quick-new" onClick={startNew}>+ Новая проверка</button><div className="topbar-profile">{ADMINISTRATOR_INITIALS}</div></header>
+        <header className="workspace-topbar"><div><span className="workspace-topbar__dot" />Защищённое рабочее пространство</div><button className="quick-new" onClick={startNew}>+ Новая проверка</button><button type="button" className="notification-button" onClick={() => setNotificationsOpen(true)} aria-label={`Уведомления: ${notifications.length}`}><span>◔</span>{notifications.length > 0 && <i>{notifications.length}</i>}</button><div className="topbar-profile">{ADMINISTRATOR_INITIALS}</div></header>
         <main className="workspace-content">{page}</main>
         <footer className="workspace-footer"><span>© 2026 {data.settings.firmName}</span><span>Автоматический анализ требует профессиональной проверки юристом</span></footer>
       </div>
+      {notificationsOpen && <NotificationsDrawer items={notifications} onClose={() => setNotificationsOpen(false)} onOpenReview={openReview} onNavigate={navigate} />}
     </div>
   )
 }

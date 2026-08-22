@@ -1,9 +1,22 @@
 import type { AnalysisContext, InputType, Report, RiskLevel } from './types'
 
+export type CampaignRole = 'creative' | 'landing' | 'rules' | 'script' | 'supporting'
+
+export const CAMPAIGN_ROLE_LABEL: Record<CampaignRole, string> = {
+  creative: 'Рекламный креатив',
+  landing: 'Лендинг',
+  rules: 'Правила акции',
+  script: 'Сценарий ролика',
+  supporting: 'Подтверждающий документ',
+}
+
 export type BatchMaterial =
-  | { id: string; type: 'text'; label: string; text: string }
-  | { id: string; type: 'url'; label: string; url: string }
-  | { id: string; type: 'image'; label: string; file: File }
+  | { id: string; type: 'text'; label: string; role: CampaignRole; text: string }
+  | { id: string; type: 'url'; label: string; role: CampaignRole; url: string }
+  | { id: string; type: 'image'; label: string; role: CampaignRole; file: File }
+  | { id: string; type: 'document'; label: string; role: CampaignRole; file: File }
+  | { id: string; type: 'audio'; label: string; role: CampaignRole; file: File; transcript: string }
+  | { id: string; type: 'video'; label: string; role: CampaignRole; file: File; transcript: string }
 
 export interface BatchProgress {
   current: number
@@ -36,7 +49,11 @@ function shortLabel(value: string, maxLength = 76) {
 }
 
 export function describeBatchMaterial(material: BatchMaterial, index: number) {
-  return `Материал ${index + 1} — ${shortLabel(material.label)}`
+  return `Материал ${index + 1} · ${CAMPAIGN_ROLE_LABEL[material.role]} — ${shortLabel(material.label)}`
+}
+
+export function isFileMaterial(material: BatchMaterial): material is Extract<BatchMaterial, { file: File }> {
+  return 'file' in material
 }
 
 export function mergeBatchReports(
@@ -80,13 +97,17 @@ export function mergeBatchReports(
   }).join('\n\n')
 
   const total = successes.length + failures.length
+  const campaignRoles = Array.from(new Set(sorted.map((item) => CAMPAIGN_ROLE_LABEL[item.material.role])))
+  if (campaignRoles.length > 1) {
+    warnings.unshift(`Кампания проверена в совокупности ролей: ${campaignRoles.join(', ')}. Итоговый уровень определяется по наиболее существенному риску среди связанных материалов.`)
+  }
   const failedNote = failures.length > 0
     ? ` ${failures.length} ${failures.length === 1 ? 'материал не удалось проверить' : 'материала не удалось проверить'}; подробности указаны в предупреждениях.`
     : ''
 
   return {
     overall_risk: overallRisk,
-    summary: `Пакетная проверка: проанализировано ${successes.length} из ${total} материалов, выявлено ${findings.length} замечаний.${failedNote}`,
+    summary: `Проверка кампании: проанализировано ${successes.length} из ${total} материалов в ${campaignRoles.length} ${campaignRoles.length === 1 ? 'роли' : 'ролях'}, выявлено ${findings.length} замечаний.${failedNote}`,
     detected_categories: Array.from(new Set(sorted.flatMap((item) => item.report.detected_categories))),
     findings,
     extracted_text: extractedText,

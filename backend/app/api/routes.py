@@ -5,10 +5,12 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from ..analysis.orchestrator import Analyzer
 from ..config import settings
+from ..ingest.file import ingest_file, supported_extensions
 from ..ingest.image import ingest_image
 from ..ingest.text import ingest_text
 from ..ingest.url import ingest_url
-from ..models import AnalyzeRequest, Channel, InputType, Report
+from ..models import AnalyzeRequest, Channel, InputType, Report, RewriteRequest, RewriteResponse
+from ..rewrite import create_safe_rewrite
 
 router = APIRouter()
 _analyzer = Analyzer()
@@ -98,4 +100,64 @@ async def analyze_image(
         channel=channel,
         company_description=company_description,
         product_description=product_description,
+    )
+
+
+@router.post("/analyze/file", response_model=Report)
+async def analyze_file(
+    file: UploadFile = File(...),
+    channel: Channel = Form(Channel.internet),
+    company_description: str = Form(""),
+    product_description: str = Form(""),
+    material_role: str = Form("creative"),
+    transcript: str = Form(""),
+) -> Report:
+    """Анализ PDF/DOCX/PPTX/текстовых документов и сценариев аудио/видео."""
+    filename = file.filename or "material"
+    extension = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if extension not in supported_extensions():
+        raise HTTPException(status_code=400, detail="Неподдерживаемый формат файла.")
+
+    file_bytes = await file.read(settings.max_file_bytes + 1)
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="Загружен пустой файл.")
+    if len(file_bytes) > settings.max_file_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Файл слишком большой. Максимальный размер — "
+            f"{settings.max_file_bytes // (1024 * 1024)} МБ.",
+        )
+
+    try:
+        result = ingest_file(file_bytes, filename, transcript=transcript)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    role_labels = {
+        "creative": "рекламный креатив",
+        "landing": "лендинг",
+        "rules": "правила акции",
+        "script": "сценарий ролика",
+        "supporting": "подтверждающий документ",
+    }
+    warnings = list(result.warnings)
+    warnings.append(f"Роль материала в кампании: {role_labels.get(material_role, material_role)}.")
+    return _analyzer.analyze(
+        text=result.text,
+        input_type=result.input_type,
+        extra_warnings=warnings,
+        channel=channel,
+        company_description=company_description,
+        product_description=product_description,
+    )
+
+
+@router.post("/rewrite", response_model=RewriteResponse)
+def rewrite_ad(req: RewriteRequest) -> RewriteResponse:
+    """Создать осторожную редакцию исходного текста по найденным рискам."""
+    return create_safe_rewrite(
+        text=req.text,
+        findings=req.findings,
+        company_description=req.company_description or "",
+        product_description=req.product_description or "",
     )

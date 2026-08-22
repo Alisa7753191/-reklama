@@ -1,4 +1,5 @@
 import type { Channel } from './api'
+import type { CampaignRole } from './batchAnalysis'
 import type { InputType, Report, RiskLevel } from './types'
 
 export type WorkspaceView =
@@ -10,6 +11,8 @@ export type WorkspaceView =
   | 'knowledge'
   | 'team'
   | 'analytics'
+  | 'monitoring'
+  | 'integrations'
   | 'settings'
   | 'new-review'
   | 'review'
@@ -52,11 +55,34 @@ export interface ReviewVersion {
   findingsCount: number
 }
 
+export interface ReviewMaterial {
+  id: string
+  label: string
+  type: InputType
+  role: CampaignRole
+  contentType?: string
+  size?: number
+  storageId?: string
+  text?: string
+  url?: string
+}
+
+export interface CommentRegion {
+  materialId: string
+  materialLabel: string
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 export interface ReviewComment {
   id: string
   author: string
   text: string
   createdAt: string
+  quote?: string
+  region?: CommentRegion
 }
 
 export interface ReviewMatter {
@@ -68,12 +94,28 @@ export interface ReviewMatter {
   context: ReviewContext
   materialType: InputType
   materialLabel: string
+  materials: ReviewMaterial[]
   report: Report | null
   versions: ReviewVersion[]
   comments: ReviewComment[]
   reviewer: string | null
   createdAt: string
   updatedAt: string
+}
+
+export interface PublicationMonitor {
+  id: string
+  name: string
+  url: string
+  clientId: string
+  frequency: 'daily' | 'weekly' | 'monthly'
+  active: boolean
+  lastChecked: string
+  nextCheck: string
+  lastRisk?: RiskLevel
+  findingsCount?: number
+  lastKnowledgeUpdate?: string
+  lastError?: string
 }
 
 export interface ReviewTemplate {
@@ -124,6 +166,7 @@ export interface WorkspaceData {
   templates: ReviewTemplate[]
   knowledge: KnowledgeEntry[]
   team: TeamMember[]
+  monitors: PublicationMonitor[]
   settings: WorkspaceSettings
 }
 
@@ -176,6 +219,7 @@ export const DEFAULT_WORKSPACE: WorkspaceData = {
       },
       materialType: 'url',
       materialLabel: 'nova.demo/recovery',
+      materials: [],
       report: null,
       versions: [],
       comments: [
@@ -206,6 +250,7 @@ export const DEFAULT_WORKSPACE: WorkspaceData = {
       },
       materialType: 'image',
       materialLabel: 'credit-banner-v3.png',
+      materials: [],
       report: null,
       versions: [],
       comments: [],
@@ -234,6 +279,7 @@ export const DEFAULT_WORKSPACE: WorkspaceData = {
       },
       materialType: 'text',
       materialLabel: 'Пост для социальных сетей',
+      materials: [],
       report: null,
       versions: [],
       comments: [],
@@ -260,6 +306,7 @@ export const DEFAULT_WORKSPACE: WorkspaceData = {
     { id: 'team-2', name: 'Михаил Орлов', email: 'm.orlov@lex.demo', role: 'Юрист', active: true },
     { id: 'team-3', name: 'Елена Волкова', email: 'e.volkova@lex.demo', role: 'Младший юрист', active: true },
   ],
+  monitors: [],
   settings: {
     firmName: 'ПравоРеклама Legal',
     legalName: 'ООО «Юридические решения»',
@@ -295,6 +342,7 @@ export function loadWorkspace(): WorkspaceData {
         : member),
       reviews: workspace.reviews.map((review) => ({
         ...review,
+        materials: review.materials ?? [],
         reviewer: review.reviewer === previousAdmin ? currentAdmin : review.reviewer,
         comments: review.comments.map((comment) => comment.author === previousAdmin
           ? { ...comment, author: currentAdmin }
