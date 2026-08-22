@@ -102,8 +102,10 @@ def _match_candidate(
         match = pattern.search(candidate)
         if not match:
             continue
-        start = candidate_positions[match.start()]
-        end = candidate_positions[match.end() - 1] + 1
+        # Для редакции удаляем всё замаскированное/составное слово, а не только
+        # найденный корень: иначе у маркера останется падежное окончание.
+        start = candidate_positions[0]
+        end = candidate_positions[-1] + 1
         return EthicsMatch(text=source[start:end], start=start, end=end, kind=kind)
     return None
 

@@ -192,4 +192,4 @@ def test_rewrite_removes_obscene_language():
     assert resp.status_code == 200
     body = resp.json()
     assert "жоп" not in body["text"].lower()
-    assert "НЕЙТРАЛЬНАЯ ФОРМУЛИРОВКА" in body["text"]
+    assert body["text"] == "У конкурентов полная [НЕЙТРАЛЬНАЯ ФОРМУЛИРОВКА]"
