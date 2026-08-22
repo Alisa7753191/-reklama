@@ -42,6 +42,18 @@ def test_analyze_text_accepts_onboarding_context():
     assert body["meta"]["product_description"] == "Банковский вклад"
 
 
+def test_analyze_text_with_obscene_language_is_critical():
+    resp = client.post(
+        "/api/analyze",
+        json={"input_type": "text", "text": "У конкурентов полная жопа"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["overall_risk"] == "critical"
+    finding = next(item for item in body["findings"] if item["id"] == "obscene_or_offensive_language")
+    assert finding["legal_basis"][0]["article"] == "ст. 5, ч. 6"
+
+
 def test_analyze_empty_text_400():
     resp = client.post("/api/analyze", json={"input_type": "text", "text": "  "})
     assert resp.status_code == 400
@@ -170,3 +182,14 @@ def test_rewrite_returns_editable_draft_without_llm():
     body = resp.json()
     assert body["mode"] in {"rules", "claude"}
     assert body["text"].strip()
+
+
+def test_rewrite_removes_obscene_language():
+    resp = client.post(
+        "/api/rewrite",
+        json={"text": "У конкурентов полная жопа", "findings": []},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "жоп" not in body["text"].lower()
+    assert "НЕЙТРАЛЬНАЯ ФОРМУЛИРОВКА" in body["text"]

@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Tuple
 from ..knowledge.loader import KnowledgeBase, get_knowledge
 from ..models import Finding, LegalBasis, Liability, Practice, RiskLevel
 from . import morphology
+from .ethics import find_ethics_violation
 
 
 def _snippet(text: str, match_start: int, match_len: int, radius: int = 40) -> str:
@@ -224,6 +225,16 @@ class RulesEngine:
                         matched = True
                         evidence = _snippet(text, m.start(), len(m.group(0)))
                         break
+
+            elif rtype == "ethics_lexicon":
+                ethics_match = find_ethics_violation(text)
+                if ethics_match:
+                    matched = True
+                    evidence = _snippet(
+                        text,
+                        ethics_match.start,
+                        ethics_match.end - ethics_match.start,
+                    )
 
             elif rtype == "morph_comparative":
                 # Сравнительная степень (активнее, сильнее, лучше…) — по морфологии;

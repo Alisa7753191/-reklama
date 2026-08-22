@@ -2046,6 +2046,9 @@ a:focus-visible {
 .revision-comparison h2 { margin-top: 5px; font-size: 17px; }
 .revision-comparison > header > span { color: var(--muted); font-size: 8px; }
 .revision-selectors { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 10px; margin-top: 13px; }
+.ethics-blocker { display: flex; align-items: center; gap: 16px; margin: 0 0 15px; padding: 15px 18px; border: 1px solid rgba(255,76,107,.45); border-radius: 13px; background: linear-gradient(100deg,rgba(255,76,107,.16),rgba(255,76,107,.05)); color: #ffd7df; }
+.ethics-blocker b { flex: 0 0 auto; color: #ff718c; font-size: 10px; letter-spacing: .07em; text-transform: uppercase; }
+.ethics-blocker span { color: #d9c2c8; font-size: 10px; line-height: 1.55; }
 .revision-selectors label { display: grid; gap: 5px; color: var(--muted); font-size: 8px; }
 .revision-selectors select { min-height: 35px; padding: 0 30px 0 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text); }
 .revision-selectors > span { padding-bottom: 10px; color: var(--primary); }
@@ -2315,6 +2318,7 @@ a:focus-visible {
   .batch-item--media { grid-template-columns: 42px minmax(0,1fr) 28px; }
   .revision-selectors { grid-template-columns: 1fr; }
   .revision-selectors > span { display: none; }
+  .ethics-blocker { align-items: flex-start; flex-direction: column; gap: 6px; }
   .campaign-materials { padding: 13px; }
   .persistent-ad-editor > footer > div { width: 100%; }
   .integration-grid { grid-template-columns: 1fr; }

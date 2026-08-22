@@ -33,6 +33,32 @@ def test_number_one_symbol_detected():
     assert "superlative" in _ids("Магазин №1 в России")
 
 
+def test_obscene_and_offensive_language_detected():
+    assert "obscene_or_offensive_language" in _ids("Модные сиськи — наша новая реклама")
+    assert "obscene_or_offensive_language" in _ids("У конкурентов полная жопа")
+    assert "obscene_or_offensive_language" in _ids("Не будь идиотом — купи сейчас")
+
+
+def test_obscene_language_detects_common_obfuscation():
+    assert "obscene_or_offensive_language" in _ids("Вот это х*у*й какой-то")
+    assert "obscene_or_offensive_language" in _ids("Никакой xуйни — только факты")
+    assert "obscene_or_offensive_language" in _ids("С и с ь к и продают")
+
+
+def test_obscene_language_avoids_neutral_similar_words():
+    ids = _ids("Доставка в Херсон, оформим мандат, товары застрахованы")
+    assert "obscene_or_offensive_language" not in ids
+
+
+def test_obscene_language_finding_is_critical_and_cites_part_6():
+    findings, _ = engine.analyze("У конкурентов жопа")
+    finding = next(item for item in findings if item.id == "obscene_or_offensive_language")
+    assert finding.risk_level.value == "critical"
+    assert finding.evidence and "жопа" in finding.evidence
+    assert any(basis.article == "ст. 5, ч. 6" for basis in finding.legal_basis)
+    assert finding.liability is not None
+
+
 def test_guarantee_detected():
     assert "guarantee" in _ids("Стопроцентно вылечит любую болезнь без побочных")
 

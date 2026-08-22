@@ -6,6 +6,7 @@ from typing import Iterable
 
 from .config import settings
 from .models import Finding, RewriteResponse
+from .rules.ethics import redact_ethics_violations
 
 _REPLACEMENTS = (
     (r"\bсам(?:ый|ая|ое|ые)\s+выгодн\w*\b", "с понятными условиями"),
@@ -21,7 +22,7 @@ _REPLACEMENTS = (
 
 
 def _fallback_rewrite(text: str, findings: Iterable[Finding]) -> RewriteResponse:
-    rewritten = text.strip()
+    rewritten, ethics_replacements = redact_ethics_violations(text.strip())
     for pattern, replacement in _REPLACEMENTS:
         rewritten = re.sub(pattern, replacement, rewritten, flags=re.IGNORECASE)
 
@@ -35,13 +36,19 @@ def _fallback_rewrite(text: str, findings: Iterable[Finding]) -> RewriteResponse
         additions = "\n".join(f"— [ПЕРЕД ПУБЛИКАЦИЕЙ: {item}]" for item in actions[:12])
         rewritten = f"{rewritten}\n\n{additions}"
 
+    warnings = [
+        "Создан консервативный черновик по сработавшим правилам. Поля в квадратных "
+        "скобках необходимо заполнить фактическими данными и повторно проверить."
+    ]
+    if ethics_replacements:
+        warnings.append(
+            f"Бранные, непристойные или оскорбительные выражения заменены: "
+            f"{ethics_replacements}. Вставьте нейтральные формулировки."
+        )
     return RewriteResponse(
         text=rewritten,
         mode="rules",
-        warnings=[
-            "Создан консервативный черновик по сработавшим правилам. Поля в квадратных "
-            "скобках необходимо заполнить фактическими данными и повторно проверить."
-        ],
+        warnings=warnings,
     )
 
 
@@ -100,12 +107,19 @@ def create_safe_rewrite(
     if settings.llm_enabled:
         rewritten = _claude_rewrite(text, findings, context)
         if rewritten:
+            rewritten, ethics_replacements = redact_ethics_violations(rewritten)
+            warnings = [
+                "Редакция создана ИИ по найденным рискам. Проверьте фактические "
+                "сведения и запустите повторный юридический анализ."
+            ]
+            if ethics_replacements:
+                warnings.append(
+                    "Оставшиеся бранные, непристойные или оскорбительные выражения "
+                    "заменены строгим фильтром."
+                )
             return RewriteResponse(
                 text=rewritten,
                 mode="claude",
-                warnings=[
-                    "Редакция создана ИИ по найденным рискам. Проверьте фактические "
-                    "сведения и запустите повторный юридический анализ."
-                ],
+                warnings=warnings,
             )
     return _fallback_rewrite(text, findings)
