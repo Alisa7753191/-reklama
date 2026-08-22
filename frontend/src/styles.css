@@ -730,6 +730,181 @@ a:focus-visible {
   font-size: 11px;
 }
 
+.batch-channel-row strong {
+  padding: 7px 10px;
+  border: 1px solid rgba(57, 242, 138, 0.2);
+  border-radius: 9px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 11px;
+}
+
+.batch-slots {
+  color: var(--primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+}
+
+.batch-queue {
+  padding: 23px 26px 26px;
+  border-top: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(57, 242, 138, 0.025), rgba(3, 7, 4, 0.3));
+}
+
+.batch-queue__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 13px;
+}
+
+.batch-queue__head span {
+  color: var(--muted-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+}
+
+.batch-queue__head h3 {
+  margin: 4px 0 0;
+  color: var(--text);
+  font-size: 16px;
+}
+
+.batch-empty {
+  padding: 22px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  color: var(--muted-2);
+  text-align: center;
+  font-size: 11px;
+}
+
+.batch-list {
+  max-height: 420px;
+  display: grid;
+  gap: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.batch-item {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) 32px;
+  align-items: center;
+  gap: 12px;
+  min-height: 66px;
+  padding: 10px 11px 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(7, 12, 8, 0.88);
+}
+
+.batch-item__type {
+  display: grid;
+  place-items: center;
+  min-height: 30px;
+  border: 1px solid rgba(57, 242, 138, 0.22);
+  border-radius: 8px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 7px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+
+.batch-item__type--url {
+  border-color: rgba(83, 161, 255, 0.24);
+  background: rgba(83, 161, 255, 0.08);
+  color: #84b7ff;
+}
+
+.batch-item__type--image {
+  border-color: rgba(231, 188, 78, 0.25);
+  background: rgba(231, 188, 78, 0.08);
+  color: #e7bc4e;
+}
+
+.batch-item__body {
+  min-width: 0;
+}
+
+.batch-item__body b,
+.batch-item__body p {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.batch-item__body b {
+  color: #d7e0d9;
+  font-size: 11px;
+}
+
+.batch-item__body p {
+  margin: 5px 0 0;
+  color: var(--muted-2);
+  font-size: 9px;
+}
+
+.batch-item__remove {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 17px;
+  cursor: pointer;
+}
+
+.batch-item__remove:hover:not(:disabled) {
+  border-color: rgba(244, 91, 105, 0.42);
+  background: rgba(244, 91, 105, 0.08);
+  color: #ff8d98;
+}
+
+.batch-submit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 16px;
+  padding: 15px 16px;
+  border: 1px solid rgba(57, 242, 138, 0.2);
+  border-radius: 13px;
+  background: rgba(57, 242, 138, 0.055);
+}
+
+.batch-submit > div {
+  min-width: 0;
+}
+
+.batch-submit b,
+.batch-submit span {
+  display: block;
+}
+
+.batch-submit b {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.batch-submit span {
+  margin-top: 4px;
+  color: var(--muted-2);
+  font-size: 9px;
+}
+
+.batch-submit .btn {
+  flex: 0 0 auto;
+  min-width: 190px;
+}
+
 .error,
 .loading {
   margin-top: 18px;
@@ -1035,6 +1210,13 @@ a:focus-visible {
   .panel__actions { align-items: stretch; flex-direction: column-reverse; }
   .panel__actions .btn { width: 100%; }
   .panel__actions .hint { text-align: center; }
+  .batch-channel-row strong { order: 2; }
+  .batch-channel-row .channel-hint { order: 3; }
+  .batch-queue { padding: 20px 18px; }
+  .batch-item { grid-template-columns: 46px minmax(0, 1fr) 30px; gap: 9px; }
+  .batch-item__type { font-size: 6px; }
+  .batch-submit { align-items: stretch; flex-direction: column; }
+  .batch-submit .btn { width: 100%; min-width: 0; }
   .footer { align-items: flex-start; flex-direction: column; justify-content: center; gap: 4px; padding: 18px 0; }
 }
 

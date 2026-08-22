@@ -1,29 +1,21 @@
 import { useRef, useState } from 'react'
-import type { InputType } from '../types'
 import type { Channel } from '../api'
+import type { BatchMaterial, BatchProgress } from '../batchAnalysis'
+import { CHANNEL_LABEL } from '../labels'
+import type { InputType } from '../types'
 
 interface Props {
   loading: boolean
+  channel: Channel
+  progress: BatchProgress | null
   onDraftChange: () => void
-  onAnalyzeText: (text: string, channel: Channel) => void
-  onAnalyzeUrl: (url: string, channel: Channel) => void
-  onAnalyzeImage: (file: File, channel: Channel) => void
+  onAnalyzeBatch: (materials: BatchMaterial[]) => void
 }
 
 const TABS: { key: InputType; label: string }[] = [
   { key: 'text', label: 'Текст' },
   { key: 'url', label: 'Ссылка / лендинг' },
-  { key: 'image', label: 'Изображение' },
-]
-
-const CHANNELS: { key: Channel; label: string }[] = [
-  { key: 'internet', label: 'Интернет' },
-  { key: 'sms', label: 'СМС / рассылка' },
-  { key: 'email', label: 'E-mail' },
-  { key: 'tv', label: 'ТВ' },
-  { key: 'radio', label: 'Радио' },
-  { key: 'print', label: 'Печать' },
-  { key: 'outdoor', label: 'Наружная' },
+  { key: 'image', label: 'Изображения' },
 ]
 
 const EXAMPLE =
@@ -31,22 +23,40 @@ const EXAMPLE =
   'выгодные кредиты. Оставьте заявку прямо сейчас!'
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024
+const MAX_BATCH_ITEMS = 20
 const ALLOWED_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif'])
+
+function createMaterialId() {
+  return `material-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+function formatFileSize(bytes: number) {
+  return bytes >= 1024 * 1024
+    ? `${(bytes / 1024 / 1024).toFixed(1).replace('.', ',')} МБ`
+    : `${Math.max(1, Math.round(bytes / 1024))} КБ`
+}
+
+function materialPreview(material: BatchMaterial) {
+  if (material.type === 'text') return material.text
+  if (material.type === 'url') return material.url
+  return `${material.file.type.replace('image/', '').toUpperCase()} · ${formatFileSize(material.file.size)}`
+}
 
 export function InputPanel({
   loading,
+  channel,
+  progress,
   onDraftChange,
-  onAnalyzeText,
-  onAnalyzeUrl,
-  onAnalyzeImage,
+  onAnalyzeBatch,
 }: Props) {
   const [tab, setTab] = useState<InputType>('text')
   const [text, setText] = useState('')
   const [url, setUrl] = useState('')
-  const [file, setFile] = useState<File | null>(null)
+  const [materials, setMaterials] = useState<BatchMaterial[]>([])
   const [fileError, setFileError] = useState('')
-  const [channel, setChannel] = useState<Channel>('internet')
   const fileRef = useRef<HTMLInputElement>(null)
+
+  const remainingSlots = MAX_BATCH_ITEMS - materials.length
 
   function changeTab(nextTab: InputType) {
     if (nextTab === tab) return
@@ -54,37 +64,90 @@ export function InputPanel({
     onDraftChange()
   }
 
-  function selectFile(nextFile?: File) {
+  function addText() {
+    const value = text.trim()
+    if (!value || remainingSlots <= 0) return
+    const number = materials.filter((item) => item.type === 'text').length + 1
+    setMaterials((current) => [...current, {
+      id: createMaterialId(),
+      type: 'text',
+      label: `Текстовый материал ${number}`,
+      text: value,
+    }])
+    setText('')
+    onDraftChange()
+  }
+
+  function addUrl() {
+    const value = url.trim()
+    if (!value || remainingSlots <= 0) return
+    const number = materials.filter((item) => item.type === 'url').length + 1
+    setMaterials((current) => [...current, {
+      id: createMaterialId(),
+      type: 'url',
+      label: `Ссылка ${number}: ${value}`,
+      url: value,
+    }])
+    setUrl('')
+    onDraftChange()
+  }
+
+  function addFiles(fileList?: FileList | File[]) {
     onDraftChange()
     setFileError('')
+    if (!fileList || fileList.length === 0) return
 
-    if (!nextFile) {
-      setFile(null)
-      return
+    const selected = Array.from(fileList)
+    const accepted: File[] = []
+    const errors: string[] = []
+
+    for (const candidate of selected) {
+      if (!ALLOWED_IMAGE_TYPES.has(candidate.type)) {
+        errors.push(`${candidate.name}: неподдерживаемый формат`)
+      } else if (candidate.size > MAX_IMAGE_BYTES) {
+        errors.push(`${candidate.name}: файл больше 10 МБ`)
+      } else if (accepted.length >= remainingSlots) {
+        errors.push(`В одну проверку можно добавить не более ${MAX_BATCH_ITEMS} материалов`)
+        break
+      } else {
+        accepted.push(candidate)
+      }
     }
-    if (!ALLOWED_IMAGE_TYPES.has(nextFile.type)) {
-      setFile(null)
-      setFileError('Поддерживаются только PNG, JPG, WEBP и GIF.')
-      if (fileRef.current) fileRef.current.value = ''
-      return
+
+    if (accepted.length > 0) {
+      setMaterials((current) => [
+        ...current,
+        ...accepted.map((file) => ({
+          id: createMaterialId(),
+          type: 'image' as const,
+          label: file.name,
+          file,
+        })),
+      ])
     }
-    if (nextFile.size > MAX_IMAGE_BYTES) {
-      setFile(null)
-      setFileError('Файл больше 10 МБ. Уменьшите изображение и попробуйте снова.')
-      if (fileRef.current) fileRef.current.value = ''
-      return
-    }
-    setFile(nextFile)
+    if (errors.length > 0) setFileError(Array.from(new Set(errors)).join('. '))
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
+  function removeMaterial(id: string) {
+    setMaterials((current) => current.filter((item) => item.id !== id))
+    onDraftChange()
+  }
+
+  function clearMaterials() {
+    setMaterials([])
+    setFileError('')
+    onDraftChange()
   }
 
   return (
-    <div className="panel">
+    <div className="panel batch-panel">
       <div className="panel__header">
         <div>
-          <span className="panel__eyebrow">ФОРМАТ МАТЕРИАЛА</span>
-          <h2>Что будем проверять?</h2>
+          <span className="panel__eyebrow">ПАКЕТ МАТЕРИАЛОВ</span>
+          <h2>Соберите всё для одной проверки</h2>
         </div>
-        <span className="panel__status"><i /> Готово к анализу</span>
+        <span className="panel__status"><i /> {materials.length > 0 ? `${materials.length} в пакете` : 'Готово к загрузке'}</span>
       </div>
 
       <div className="tabs">
@@ -101,31 +164,17 @@ export function InputPanel({
         ))}
       </div>
 
-      <div className="channel-row">
-        <label htmlFor="channel">Канал распространения:</label>
-        <select
-          id="channel"
-          value={channel}
-          onChange={(event) => {
-            setChannel(event.target.value as Channel)
-            onDraftChange()
-          }}
-          disabled={loading}
-        >
-          {CHANNELS.map((item) => (
-            <option key={item.key} value={item.key}>{item.label}</option>
-          ))}
-        </select>
-        <span className="channel-hint">
-          Риски маркировки (ERID, «реклама») — только для интернет-рекламы
-        </span>
+      <div className="channel-row batch-channel-row">
+        <label>Канал пакета:</label>
+        <strong>{CHANNEL_LABEL[channel] ?? channel}</strong>
+        <span className="channel-hint">Каждый материал проверяется отдельно, выводы объединяются в одно заключение</span>
       </div>
 
       {tab === 'text' && (
         <div className="tab-body">
           <textarea
             className="textarea"
-            placeholder="Вставьте рекламный текст, объявление, пост, слоган…"
+            placeholder="Вставьте первый рекламный текст, объявление, пост или слоган…"
             value={text}
             onChange={(event) => {
               setText(event.target.value)
@@ -151,10 +200,10 @@ export function InputPanel({
             <button
               type="button"
               className="btn"
-              onClick={() => onAnalyzeText(text, channel)}
-              disabled={loading || !text.trim()}
+              onClick={addText}
+              disabled={loading || !text.trim() || remainingSlots <= 0}
             >
-              {loading ? 'Проверяю…' : 'Проверить'}
+              + Добавить текст в пакет
             </button>
           </div>
         </div>
@@ -177,14 +226,14 @@ export function InputPanel({
             disabled={loading}
           />
           <div className="panel__actions">
-            <span className="hint">Можно вставить адрес с https:// или без него</span>
+            <span className="hint">Можно добавить несколько разных лендингов</span>
             <button
               type="button"
               className="btn"
-              onClick={() => onAnalyzeUrl(url, channel)}
-              disabled={loading || !url.trim()}
+              onClick={addUrl}
+              disabled={loading || !url.trim() || remainingSlots <= 0}
             >
-              {loading ? 'Проверяю…' : 'Проверить'}
+              + Добавить ссылку в пакет
             </button>
           </div>
         </div>
@@ -195,11 +244,11 @@ export function InputPanel({
           <div
             className="filedrop"
             role="button"
-            tabIndex={loading ? -1 : 0}
-            aria-disabled={loading}
-            onClick={() => !loading && fileRef.current?.click()}
+            tabIndex={loading || remainingSlots <= 0 ? -1 : 0}
+            aria-disabled={loading || remainingSlots <= 0}
+            onClick={() => !loading && remainingSlots > 0 && fileRef.current?.click()}
             onKeyDown={(event) => {
-              if (!loading && (event.key === 'Enter' || event.key === ' ')) {
+              if (!loading && remainingSlots > 0 && (event.key === 'Enter' || event.key === ' ')) {
                 event.preventDefault()
                 fileRef.current?.click()
               }
@@ -207,37 +256,69 @@ export function InputPanel({
             onDragOver={(event) => event.preventDefault()}
             onDrop={(event) => {
               event.preventDefault()
-              if (!loading) selectFile(event.dataTransfer.files?.[0])
+              if (!loading && remainingSlots > 0) addFiles(event.dataTransfer.files)
             }}
           >
             <input
               ref={fileRef}
               type="file"
               accept="image/png,image/jpeg,image/webp,image/gif"
+              multiple
               hidden
-              onChange={(event) => selectFile(event.target.files?.[0])}
-              disabled={loading}
+              onChange={(event) => addFiles(event.target.files ?? undefined)}
+              disabled={loading || remainingSlots <= 0}
             />
-            {file ? (
-              <><b>Файл выбран</b><span>{file.name}</span></>
-            ) : (
-              <><b>Перетащите или выберите креатив</b><span>PNG, JPG, WEBP или GIF · до 10 МБ</span></>
-            )}
+            <b>Перетащите или выберите несколько креативов</b>
+            <span>PNG, JPG, WEBP или GIF · каждый файл до 10 МБ</span>
           </div>
           {fileError && <div className="field-error" role="alert">{fileError}</div>}
           <div className="panel__actions">
-            <span className="hint">Текст распознаётся через OCR / vision-модель</span>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => file && onAnalyzeImage(file, channel)}
-              disabled={loading || !file}
-            >
-              {loading ? 'Проверяю…' : 'Проверить'}
-            </button>
+            <span className="hint">Все выбранные изображения сразу добавятся в пакет</span>
+            <span className="batch-slots">Свободно мест: {remainingSlots}</span>
           </div>
         </div>
       )}
+
+      <section className="batch-queue" aria-live="polite">
+        <div className="batch-queue__head">
+          <div><span>МАТЕРИАЛЫ ДЛЯ ПРОВЕРКИ</span><h3>{materials.length > 0 ? `${materials.length} из ${MAX_BATCH_ITEMS} добавлено` : 'Пакет пока пуст'}</h3></div>
+          {materials.length > 0 && <button type="button" className="text-action" onClick={clearMaterials} disabled={loading}>Очистить</button>}
+        </div>
+
+        {materials.length === 0 ? (
+          <div className="batch-empty">Выберите формат выше и добавьте один или несколько материалов.</div>
+        ) : (
+          <div className="batch-list">
+            {materials.map((material, index) => (
+              <article className="batch-item" key={material.id}>
+                <span className={`batch-item__type batch-item__type--${material.type}`}>
+                  {material.type === 'text' ? 'ТЕКСТ' : material.type === 'url' ? 'URL' : 'ФАЙЛ'}
+                </span>
+                <div className="batch-item__body">
+                  <b>{index + 1}. {material.label}</b>
+                  <p>{materialPreview(material)}</p>
+                </div>
+                <button type="button" className="batch-item__remove" onClick={() => removeMaterial(material.id)} disabled={loading} aria-label={`Удалить ${material.label}`}>×</button>
+              </article>
+            ))}
+          </div>
+        )}
+
+        <div className="batch-submit">
+          <div>
+            <b>{loading && progress ? `Проверяю ${progress.current} из ${progress.total}` : 'Единое заключение по всему пакету'}</b>
+            <span>{loading && progress ? progress.label : 'Риски будут отмечены номером исходного материала'}</span>
+          </div>
+          <button
+            type="button"
+            className="btn btn--primary"
+            onClick={() => onAnalyzeBatch(materials)}
+            disabled={loading || materials.length === 0}
+          >
+            {loading ? 'Идёт проверка…' : `Проверить пакет · ${materials.length}`}
+          </button>
+        </div>
+      </section>
     </div>
   )
 }

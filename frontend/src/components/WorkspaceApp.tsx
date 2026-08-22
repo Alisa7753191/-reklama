@@ -1,9 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { analyzeImage, analyzeText, analyzeUrl, getHealth, type Channel } from '../api'
+import {
+  describeBatchMaterial,
+  mergeBatchReports,
+  type BatchAnalysisFailure,
+  type BatchAnalysisResult,
+  type BatchMaterial,
+  type BatchProgress,
+} from '../batchAnalysis'
 import { CHANNEL_LABEL, RISK_LABEL } from '../labels'
 import { downloadKnowledgeDocument, formatDocumentSize, saveKnowledgeDocument } from '../knowledgeDocumentStorage'
 import { exportReviewToWord } from '../reportExport'
-import type { AnalysisContext, InputType, Report } from '../types'
+import type { AnalysisContext, Report } from '../types'
 import {
   STATUS_LABEL,
   STATUS_TONE,
@@ -490,6 +498,7 @@ function NewReviewPage({ data, initialTemplate, onCancel, onCreated }: { data: W
   })
   const [step, setStep] = useState<1 | 2>(1)
   const [loading, setLoading] = useState(false)
+  const [progress, setProgress] = useState<BatchProgress | null>(null)
   const [error, setError] = useState('')
 
   const valid = draft.clientId && draft.title.trim() && draft.company.trim() && draft.product.trim()
@@ -502,11 +511,40 @@ function NewReviewPage({ data, initialTemplate, onCancel, onCreated }: { data: W
     setDraft((current) => ({ ...current, clientId: id, company: client ? `${client.name}, сфера: ${client.industry}` : current.company }))
   }
 
-  async function runAnalysis(type: InputType, label: string, fn: () => Promise<Report>) {
+  async function runBatchAnalysis(materials: BatchMaterial[]) {
+    if (materials.length === 0) return
     setLoading(true); setError('')
     try {
-      const report = await fn()
+      const successes: BatchAnalysisResult[] = []
+      const failures: BatchAnalysisFailure[] = []
+
+      for (let index = 0; index < materials.length; index += 1) {
+        const material = materials[index]
+        setProgress({ current: index + 1, total: materials.length, label: describeBatchMaterial(material, index) })
+        try {
+          let report: Report
+          if (material.type === 'text') report = await analyzeText(material.text, draft.channel, context)
+          else if (material.type === 'url') report = await analyzeUrl(material.url, draft.channel, context)
+          else report = await analyzeImage(material.file, draft.channel, context)
+          successes.push({ material, index, report })
+        } catch (caught) {
+          failures.push({
+            material,
+            index,
+            message: caught instanceof Error ? caught.message : 'Неизвестная ошибка проверки',
+          })
+        }
+      }
+
+      if (successes.length === 0) {
+        throw new Error(failures[0]?.message || 'Не удалось проверить материалы. Попробуйте ещё раз.')
+      }
+
+      const report = mergeBatchReports(successes, failures, draft.channel, context)
       const now = new Date().toISOString()
+      const typeNames = Array.from(new Set(materials.map((material) => (
+        material.type === 'text' ? 'текст' : material.type === 'url' ? 'лендинг' : 'изображение'
+      ))))
       const review: ReviewMatter = {
         id: createId('review'),
         number: nextReviewNumber(data.reviews),
@@ -517,8 +555,8 @@ function NewReviewPage({ data, initialTemplate, onCancel, onCreated }: { data: W
           company: draft.company.trim(), product: draft.product.trim(), audience: draft.audience.trim(), territory: draft.territory.trim(), publishDate: draft.publishDate, channel: draft.channel,
           hasLicense: draft.hasLicense, targetsMinors: draft.targetsMinors, bloggerAd: draft.bloggerAd, promotion: draft.promotion, personalData: draft.personalData,
         },
-        materialType: type,
-        materialLabel: label,
+        materialType: materials[0].type,
+        materialLabel: materials.length === 1 ? materials[0].label : `Пакет: ${materials.length} материалов · ${typeNames.join(', ')}`,
         report,
         versions: [{ id: createId('version'), number: 1, createdAt: now, text: report.extracted_text, overallRisk: report.overall_risk, findingsCount: report.findings.length }],
         comments: [],
@@ -529,12 +567,12 @@ function NewReviewPage({ data, initialTemplate, onCancel, onCreated }: { data: W
       onCreated(review)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Не удалось выполнить проверку.')
-    } finally { setLoading(false) }
+    } finally { setLoading(false); setProgress(null) }
   }
 
   return (
     <>
-      <PageHeader eyebrow={`НОВАЯ ПРОВЕРКА · ШАГ ${step} ИЗ 2`} title={step === 1 ? 'Контекст рекламного материала' : 'Загрузите материал'} description={step === 1 ? 'Заполните данные, которые влияют на юридическую оценку.' : 'Система сформирует черновик, который затем подтверждает юрист.'} action={<button className="btn btn--secondary" onClick={onCancel}>Отменить</button>} />
+      <PageHeader eyebrow={`НОВАЯ ПРОВЕРКА · ШАГ ${step} ИЗ 2`} title={step === 1 ? 'Контекст рекламного материала' : 'Добавьте материалы'} description={step === 1 ? 'Заполните данные, которые влияют на юридическую оценку.' : 'Соберите в один пакет тексты, ссылки и изображения. Система сформирует единый черновик для юриста.'} action={<button className="btn btn--secondary" onClick={onCancel}>Отменить</button>} />
       <div className="review-progress"><span className={step >= 1 ? 'active' : ''}>01 Контекст</span><i /><span className={step >= 2 ? 'active' : ''}>02 Материал и анализ</span></div>
       {step === 1 ? (
         <section className="workspace-card intake-card">
@@ -558,8 +596,8 @@ function NewReviewPage({ data, initialTemplate, onCancel, onCreated }: { data: W
       ) : (
         <section className="material-step">
           <div className="matter-context-strip"><div><span>КЛИЕНТ</span><p>{data.clients.find((client) => client.id === draft.clientId)?.name}</p></div><div><span>МАТЕРИАЛ</span><p>{draft.title}</p></div><div><span>КАНАЛ</span><p>{CHANNEL_LABEL[draft.channel]}</p></div><button className="text-action" onClick={() => setStep(1)}>Изменить контекст</button></div>
-          <InputPanel loading={loading} onDraftChange={() => setError('')} onAnalyzeText={(text) => runAnalysis('text', 'Рекламный текст', () => analyzeText(text, draft.channel, context))} onAnalyzeUrl={(url) => runAnalysis('url', url, () => analyzeUrl(url, draft.channel, context))} onAnalyzeImage={(file) => runAnalysis('image', file.name, () => analyzeImage(file, draft.channel, context))} />
-          {loading && <div className="loading"><div className="spinner" /><div><b>Формируем юридический черновик</b><span>Проверяем материал и сопоставляем его с базой знаний…</span></div></div>}
+          <InputPanel loading={loading} channel={draft.channel} progress={progress} onDraftChange={() => setError('')} onAnalyzeBatch={runBatchAnalysis} />
+          {loading && <div className="loading"><div className="spinner" /><div><b>Формируем единое юридическое заключение</b><span>{progress ? `${progress.current} из ${progress.total}: ${progress.label}` : 'Подготавливаем пакет материалов…'}</span></div></div>}
           {error && <div className="error" role="alert">{error}</div>}
         </section>
       )}
